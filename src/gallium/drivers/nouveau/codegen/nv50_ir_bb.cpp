@@ -489,6 +489,7 @@ Pass::doRun(Function *func, bool ordered, bool skipPhi)
 
    for (; !bbIter->end(); bbIter->next()) {
       bb = BasicBlock::get(reinterpret_cast<Graph::Node *>(bbIter->get()));
+      debug_printf("bb: %p, ordered: %d\n", bb, ordered);
       if (!visit(bb))
          break;
       for (insn = skipPhi ? bb->getEntry() : bb->getFirst(); insn != NULL;

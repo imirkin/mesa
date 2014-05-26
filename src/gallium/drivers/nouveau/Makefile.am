@@ -26,8 +26,10 @@ include Makefile.sources
 include $(top_srcdir)/src/gallium/Automake.inc
 
 AM_CPPFLAGS = \
+	$(LLVM_CFLAGS) \
 	$(GALLIUM_DRIVER_CFLAGS) \
 	$(LIBDRM_CFLAGS) \
+	-std=c++11 \
 	$(NOUVEAU_CFLAGS)
 
 noinst_LTLIBRARIES = libnouveau.la
@@ -49,4 +51,5 @@ nouveau_compiler_SOURCES = \
 nouveau_compiler_LDADD = \
 	libnouveau.la \
 	../../auxiliary/libgallium.la \
+	$(LLVM_LDFLAGS) $(LLVM_LIBS) \
 	$(GALLIUM_COMMON_LIB_DEPS)

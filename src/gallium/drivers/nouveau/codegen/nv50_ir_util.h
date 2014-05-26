@@ -54,7 +54,7 @@
 
 
 #define NV50_IR_FUNC_ALLOC_OBJ_DEF(obj, f, args...)               \
-   new ((f)->getProgram()->mem_##obj.allocate()) obj(f, args)
+   new ((f)->getProgram()->mem_##obj.allocate()) nv50_ir::obj(f, args)
 
 #define new_Instruction(f, args...)                      \
    NV50_IR_FUNC_ALLOC_OBJ_DEF(Instruction, f, args)
@@ -70,7 +70,7 @@
 
 
 #define NV50_IR_PROG_ALLOC_OBJ_DEF(obj, p, args...)   \
-   new ((p)->mem_##obj.allocate()) obj(p, args)
+   new ((p)->mem_##obj.allocate()) nv50_ir::obj(p, args)
 
 #define new_Symbol(p, args...)                           \
    NV50_IR_PROG_ALLOC_OBJ_DEF(Symbol, p, args)

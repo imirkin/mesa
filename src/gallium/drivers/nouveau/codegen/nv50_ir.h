@@ -30,6 +30,7 @@
 #include <list>
 #include <vector>
 #include <tr1/unordered_set>
+#include <string>
 
 #include "codegen/nv50_ir_util.h"
 #include "codegen/nv50_ir_graph.h"
@@ -1054,7 +1055,7 @@ public:
    static inline Function *get(Graph::Node *node);
 
    inline Program *getProgram() const { return prog; }
-   inline const char *getName() const { return name; }
+   inline const char *getName() const { return name.c_str(); }
    inline int getId() const { return id; }
    inline uint32_t getLabel() const { return label; }
 
@@ -1112,7 +1113,7 @@ private:
 private:
    uint32_t label;
    int id;
-   const char *const name;
+   std::string name;
    Program *prog;
 };
 
@@ -1149,6 +1150,7 @@ public:
 
    bool makeFromTGSI(struct nv50_ir_prog_info *);
    bool makeFromSM4(struct nv50_ir_prog_info *);
+   bool makeFromSPIR(struct nv50_ir_prog_info *);
    bool convertToSSA();
    bool optimizeSSA(int level);
    bool optimizePostRA(int level);

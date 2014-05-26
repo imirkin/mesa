@@ -1177,7 +1177,6 @@ nv50_ir_generate_code(struct nv50_ir_prog_info *info)
 
    switch (info->bin.sourceRep) {
 #if 0
-   case PIPE_IR_LLVM:
    case PIPE_IR_GLSL:
       return -1;
    case PIPE_IR_SM4:
@@ -1185,6 +1184,9 @@ nv50_ir_generate_code(struct nv50_ir_prog_info *info)
       break;
    case PIPE_IR_TGSI:
 #endif
+   case NV50_PROGRAM_IR_LLVM:
+      ret = prog->makeFromSPIR(info) ? 0 : -2;
+      break;
    default:
       ret = prog->makeFromTGSI(info) ? 0 : -2;
       break;

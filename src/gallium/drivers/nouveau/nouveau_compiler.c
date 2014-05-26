@@ -136,6 +136,33 @@ nouveau_codegen(int chipset, int type, struct tgsi_token tokens[],
    return 0;
 }
 
+static int
+nouveau_codegen_spir(int chipset, void *source, int length,
+                     unsigned *size, unsigned **code)
+{
+   struct nv50_ir_prog_info info = {0};
+   int ret;
+
+   info.target = chipset;
+   info.type = PIPE_SHADER_COMPUTE;
+   info.bin.sourceRep = NV50_PROGRAM_IR_LLVM;
+   info.bin.source = source;
+   info.bin.sourceLength = length;
+
+   info.optLevel = debug_get_num_option("NV50_PROG_OPTIMIZE", 3);
+   info.dbgFlags = debug_get_num_option("NV50_PROG_DEBUG", 0);
+
+   ret = nv50_ir_generate_code(&info);
+   if (ret) {
+      _debug_printf("Error compiling program: %d\n", ret);
+      return ret;
+   }
+
+   *size = info.bin.codeSize;
+   *code = info.bin.code;
+   return 0;
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -144,11 +171,14 @@ main(int argc, char *argv[])
    const char *filename = NULL;
    FILE *f;
    char text[65536] = {0};
-   unsigned size, *code;
+   unsigned text_len, size, *code;
+   bool spir = false;
 
    for (i = 1; i < argc; i++) {
       if (!strcmp(argv[i], "-a"))
          chipset = strtol(argv[++i], NULL, 16);
+      if (!strcmp(argv[i], "-spir"))
+         spir = true;
       else
          filename = argv[i];
    }
@@ -173,7 +203,8 @@ main(int argc, char *argv[])
       return 1;
    }
 
-   if (!fread(text, 1, sizeof(text), f) || ferror(f)) {
+   text_len = fread(text, 1, sizeof(text), f);
+   if (!text_len || ferror(f)) {
       _debug_printf("Error reading file '%s'\n", filename);
       fclose(f);
       return 1;
@@ -182,30 +213,35 @@ main(int argc, char *argv[])
 
    _debug_printf("Compiling for NV%X\n", chipset);
 
-   if (!strncmp(text, "FRAG", 4))
-      type = PIPE_SHADER_FRAGMENT;
-   else if (!strncmp(text, "VERT", 4))
-      type = PIPE_SHADER_VERTEX;
-   else if (!strncmp(text, "GEOM", 4))
-      type = PIPE_SHADER_GEOMETRY;
-   else if (!strncmp(text, "COMP", 4))
-      type = PIPE_SHADER_COMPUTE;
-   else {
-      _debug_printf("Unrecognized TGSI header\n");
-      return 1;
-   }
+   if (!spir) {
+      if (!strncmp(text, "FRAG", 4))
+         type = PIPE_SHADER_FRAGMENT;
+      else if (!strncmp(text, "VERT", 4))
+         type = PIPE_SHADER_VERTEX;
+      else if (!strncmp(text, "GEOM", 4))
+         type = PIPE_SHADER_GEOMETRY;
+      else if (!strncmp(text, "COMP", 4))
+         type = PIPE_SHADER_COMPUTE;
+      else {
+         _debug_printf("Unrecognized TGSI header\n");
+         return 1;
+      }
 
-   if (!tgsi_text_translate(text, tokens, Elements(tokens)))
-      return 1;
+      if (!tgsi_text_translate(text, tokens, Elements(tokens)))
+         return 1;
 
-   if (chipset >= 0x50) {
-      i = nouveau_codegen(chipset, type, tokens, &size, &code);
-   } else if (chipset >= 0x30) {
-      i = nv30_codegen(chipset, type, tokens, &size, &code);
+      if (chipset >= 0x50) {
+         i = nouveau_codegen(chipset, type, tokens, &size, &code);
+      } else if (chipset >= 0x30) {
+         i = nv30_codegen(chipset, type, tokens, &size, &code);
+      } else {
+         _debug_printf("chipset NV%02X not supported\n", chipset);
+         i = 1;
+      }
    } else {
-      _debug_printf("chipset NV%02X not supported\n", chipset);
-      i = 1;
+      i = nouveau_codegen_spir(chipset, text, text_len, &size, &code);
    }
+
    if (i)
       return i;
 

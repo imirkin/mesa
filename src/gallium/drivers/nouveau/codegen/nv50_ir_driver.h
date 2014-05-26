@@ -110,6 +110,7 @@ struct nv50_ir_prog_info
       uint32_t codeSize;
       uint8_t sourceRep;  /* NV50_PROGRAM_IR */
       const void *source;
+      uint32_t sourceLength;
       void *relocData;
       struct nv50_ir_prog_symbol *syms;
       uint16_t numSyms;
