@@ -132,7 +132,7 @@ Converter::convert(const Instruction& i)
          if (i.getNumOperands() == 1) {
             nv50::BasicBlock *dst = GetOrNull(blocks, dyn_cast<const BasicBlock>(i.getOperand(0)));
             mkFlow(nv50::OP_BRA, dst, nv50::CC_ALWAYS, NULL);
-            bb->cfg.attach(&dst->cfg, nv50::Graph::Edge::TREE);
+            bb->cfg.attach(&dst->cfg, nv50::Graph::Edge::UNKNOWN);
             break;
          }
 
@@ -144,8 +144,8 @@ Converter::convert(const Instruction& i)
 
          mkFlow(nv50::OP_BRA, elseBB, nv50::CC_NOT_P, op[0]);
          mkFlow(nv50::OP_BRA, ifBB, nv50::CC_ALWAYS, NULL);
-         bb->cfg.attach(&ifBB->cfg, nv50::Graph::Edge::TREE);
-         bb->cfg.attach(&elseBB->cfg, nv50::Graph::Edge::TREE);
+         bb->cfg.attach(&ifBB->cfg, nv50::Graph::Edge::UNKNOWN);
+         bb->cfg.attach(&elseBB->cfg, nv50::Graph::Edge::UNKNOWN);
          break;
       }
       case Instruction::ICmp: {
@@ -274,6 +274,8 @@ Converter::convert(const Function& function)
    // each argument came from (and do so consistently. Add the edges in
    // reverse of that order (since edges are added to the 'front') so that the
    // phi nodes in the nv50 ir work out as well.
+
+   //func->cfg.classifyEdges();
 
    prog->calls.insert(&func->call);
 
