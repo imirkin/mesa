@@ -192,7 +192,7 @@ nv30_context_destroy(struct pipe_context *pipe)
    pipe_resource_reference(&nv30->fragprog.constbuf, NULL);
 
    pipe_resource_reference(&nv30->blit_fp, NULL);
-   nouveau_heap_destroy(&nv30->blit_vp);
+   nouveau_heap_free(&nv30->blit_vp);
 
    nouveau_context_destroy(&nv30->base);
 }

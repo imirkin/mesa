@@ -23,6 +23,7 @@
  *
  */
 
+#include "draw/draw_context.h"
 #include "tgsi/tgsi_parse.h"
 
 #include "nv_object.xml.h"
@@ -143,10 +144,13 @@ nv30_fp_state_create(struct pipe_context *pipe,
 static void
 nv30_fp_state_delete(struct pipe_context *pipe, void *hwcso)
 {
+   struct nv30_context *nv30 = nv30_context(pipe);
    struct nv30_fragprog *fp = hwcso;
 
    pipe_resource_reference(&fp->buffer, NULL);
 
+   if (fp->draw)
+      draw_delete_fragment_shader(nv30->draw, fp->draw);
    FREE((void *)fp->pipe.tokens);
    FREE(fp->insn);
    FREE(fp);
