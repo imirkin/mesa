@@ -158,6 +158,7 @@ static void
 nv30_context_destroy(struct pipe_context *pipe)
 {
    struct nv30_context *nv30 = nv30_context(pipe);
+   int i;
 
    if (nv30->blitter)
       util_blitter_destroy(nv30->blitter);
@@ -165,15 +166,33 @@ nv30_context_destroy(struct pipe_context *pipe)
    if (nv30->draw)
       draw_destroy(nv30->draw);
 
+   if (nv30->screen->cur_ctx == nv30)
+      nv30->screen->cur_ctx = NULL;
+
    if (nv30->screen->base.pushbuf->user_priv == &nv30->bufctx) {
       nouveau_pushbuf_bufctx(nv30->screen->base.pushbuf, NULL);
       nv30->screen->base.pushbuf->user_priv = NULL;
+      nouveau_pushbuf_kick(nv30->base.pushbuf, nv30->base.pushbuf->channel);
    }
 
    nouveau_bufctx_del(&nv30->bufctx);
 
-   if (nv30->screen->cur_ctx == nv30)
-      nv30->screen->cur_ctx = NULL;
+   util_unreference_framebuffer_state(&nv30->framebuffer);
+   for (i = 0; i < nv30->num_vtxbufs; ++i)
+      pipe_resource_reference(&nv30->vtxbuf[i].buffer, NULL);
+
+   pipe_resource_reference(&nv30->idxbuf.buffer, NULL);
+
+   for (i = 0; i < nv30->vertprog.num_textures; i++)
+      pipe_sampler_view_reference(&nv30->vertprog.textures[i], NULL);
+   pipe_resource_reference(&nv30->vertprog.constbuf, NULL);
+
+   for (i = 0; i < nv30->fragprog.num_textures; i++)
+      pipe_sampler_view_reference(&nv30->fragprog.textures[i], NULL);
+   pipe_resource_reference(&nv30->fragprog.constbuf, NULL);
+
+   pipe_resource_reference(&nv30->blit_fp, NULL);
+   nouveau_heap_destroy(&nv30->blit_vp);
 
    nouveau_context_destroy(&nv30->base);
 }
