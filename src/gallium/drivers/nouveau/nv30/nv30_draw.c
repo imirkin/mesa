@@ -444,6 +444,9 @@ nv30_render_vbo(struct pipe_context *pipe, const struct pipe_draw_info *info)
 static void
 nv30_render_destroy(struct vbuf_render *render)
 {
+   struct nv30_render *r = nv30_render(render);
+   nouveau_heap_free(&r->vertprog);
+   pipe_resource_reference(&r->buffer, NULL);
    FREE(render);
 }
 
