@@ -356,10 +356,21 @@ nv30_set_framebuffer_state(struct pipe_context *pipe,
                            const struct pipe_framebuffer_state *fb)
 {
     struct nv30_context *nv30 = nv30_context(pipe);
+    int i;
 
     nouveau_bufctx_reset(nv30->bufctx, BUFCTX_FB);
 
-    nv30->framebuffer = *fb;
+    for (i = 0; i < fb->nr_cbufs; ++i)
+       pipe_surface_reference(&nv30->framebuffer.cbufs[i], fb->cbufs[i]);
+    for (; i < nv30->framebuffer.nr_cbufs; ++i)
+       pipe_surface_reference(&nv30->framebuffer.cbufs[i], NULL);
+
+    nv30->framebuffer.nr_cbufs = fb->nr_cbufs;
+    nv30->framebuffer.width = fb->width;
+    nv30->framebuffer.height = fb->height;
+
+    pipe_surface_reference(&nv30->framebuffer.zsbuf, fb->zsbuf);
+
     nv30->dirty |= NV30_NEW_FRAMEBUFFER;
 
    /* Hardware can't handle different swizzled-ness or different blocksizes
@@ -373,7 +384,7 @@ nv30_set_framebuffer_state(struct pipe_context *pipe,
        if (color_mt->swizzled != zeta_mt->swizzled ||
            (util_format_get_blocksize(fb->zsbuf->format) > 2) !=
            (util_format_get_blocksize(fb->cbufs[0]->format) > 2)) {
-          nv30->framebuffer.zsbuf = NULL;
+          pipe_surface_reference(&nv30->framebuffer.zsbuf, NULL);
           debug_printf("Mismatched color and zeta formats, ignoring zeta.\n");
        }
     }
