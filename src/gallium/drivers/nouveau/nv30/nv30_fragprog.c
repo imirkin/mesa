@@ -153,6 +153,7 @@ nv30_fp_state_delete(struct pipe_context *pipe, void *hwcso)
       draw_delete_fragment_shader(nv30->draw, fp->draw);
    FREE((void *)fp->pipe.tokens);
    FREE(fp->insn);
+   FREE(fp->consts);
    FREE(fp);
 }
 
