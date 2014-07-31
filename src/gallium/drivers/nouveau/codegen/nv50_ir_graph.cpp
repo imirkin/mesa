@@ -100,7 +100,8 @@ void Graph::Node::attach(Node *node, Edge::Type kind)
    if (this->out) {
       edge->next[0] = this->out;
       edge->prev[0] = this->out->prev[0];
-      edge->prev[0]->next[0] = edge;
+      if (edge->prev[0])
+         edge->prev[0]->next[0] = edge;
       this->out->prev[0] = edge;
    }
    this->out = edge;
@@ -108,7 +109,8 @@ void Graph::Node::attach(Node *node, Edge::Type kind)
    if (node->in) {
       edge->next[1] = node->in;
       edge->prev[1] = node->in->prev[1];
-      edge->prev[1]->next[1] = edge;
+      if (edge->prev[1])
+         edge->prev[1]->next[1] = edge;
       node->in->prev[1] = edge;
    }
    node->in = edge;
@@ -161,8 +163,8 @@ Graph::Edge::Edge(Node *org, Node *tgt, Type kind)
    origin = org;
    type = kind;
 
-   next[0] = next[1] = this;
-   prev[0] = prev[1] = this;
+   next[0] = next[1] = NULL;
+   prev[0] = prev[1] = NULL;
 }
 
 bool

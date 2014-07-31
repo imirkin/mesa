@@ -24,6 +24,7 @@
 
 #include <llvm/Bitcode/ReaderWriter.h>
 #include <llvm/IR/Instruction.h>
+#include <llvm/IR/Instructions.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 #include <llvm/Support/MemoryBuffer.h>
@@ -56,6 +57,8 @@ private:
    std::unordered_map<const llvm::Value*, nv50::Value*> values;
    std::unordered_map<const llvm::BasicBlock*, nv50::BasicBlock*> blocks;
    std::unordered_map<const llvm::Function*, nv50::Function*> functions;
+
+   std::unordered_multimap<const llvm::BasicBlock *, nv50::Value *> phi_consts;
 };
 
 Converter::Converter(nv50::Program *ir, struct nv50_ir_prog_info *info) :
@@ -101,7 +104,13 @@ Converter::convert(const Value *val)
    nv50::Value *ret = GetOrNull(values, val);
    if (ret)
       return ret;
-   // XXX deal with constants
+   // Is it a constant?
+   if (Constant::classof(val)) {
+      const Constant *c = (const Constant *)val;
+      return loadImm(NULL, (uint32_t)c->getUniqueInteger().getSExtValue());
+   }
+   // XXX handle function arguments
+   //assert(false);
    return ret;
 }
 
@@ -115,13 +124,20 @@ Converter::convert(const Instruction& i)
       op[c] = convert(lop[c]);
    }
 
-   nv50::Value *dst = getScratch(nv50::TYPE_U32);
-   values[&i] = dst;
+   nv50::Value *dst = values[&i];
+   if (!dst) {
+      dst = values[&i] = getScratch(nv50::TYPE_U32);
+   }
 
    switch (i.getOpcode()) {
       case Instruction::Ret: {
          nv50::BasicBlock *leave = nv50::BasicBlock::get(func->cfgExit);
+         assert(leave);
+
+         mkFlow(nv50::OP_RET, NULL, nv50::CC_ALWAYS, NULL)->fixed = 1;
          bb->cfg.attach(&leave->cfg, nv50::Graph::Edge::TREE);
+
+         /* XXX should this go elsewhere? */
          setPosition(leave, true);
          mkOp(nv50::OP_EXIT, nv50::TYPE_NONE, NULL)->terminator = 1;
          break;
@@ -132,7 +148,7 @@ Converter::convert(const Instruction& i)
          if (i.getNumOperands() == 1) {
             nv50::BasicBlock *dst = GetOrNull(blocks, dyn_cast<const BasicBlock>(i.getOperand(0)));
             mkFlow(nv50::OP_BRA, dst, nv50::CC_ALWAYS, NULL);
-            bb->cfg.attach(&dst->cfg, nv50::Graph::Edge::UNKNOWN);
+            bb->cfg.attach(&dst->cfg, nv50::Graph::Edge::TREE);
             break;
          }
 
@@ -144,8 +160,8 @@ Converter::convert(const Instruction& i)
 
          mkFlow(nv50::OP_BRA, elseBB, nv50::CC_NOT_P, op[0]);
          mkFlow(nv50::OP_BRA, ifBB, nv50::CC_ALWAYS, NULL);
-         bb->cfg.attach(&ifBB->cfg, nv50::Graph::Edge::UNKNOWN);
-         bb->cfg.attach(&elseBB->cfg, nv50::Graph::Edge::UNKNOWN);
+         bb->cfg.attach(&ifBB->cfg, nv50::Graph::Edge::TREE);
+         bb->cfg.attach(&elseBB->cfg, nv50::Graph::Edge::CROSS);
          break;
       }
       case Instruction::ICmp: {
@@ -155,33 +171,59 @@ Converter::convert(const Instruction& i)
          break;
       }
       case Instruction::PHI: {
-         nv50::Instruction *phi = new_Instruction(func, nv50::OP_PHI, nv50::TYPE_U32);
-
-         phi->setDef(0, dst);
-         for (unsigned c = 0; c < i.getNumOperands(); c++) {
-            // XXX handle immediates/etc
-            phi->setSrc(c, convert(i.getOperand(c)));
+         /* We could just take the phi nodes directly and try to let things
+          * line up with the SSA stage, but that's harder to
+          * guarantee. Instead just coalesce all the phi'd values into one
+          * register.
+          *
+          * If the value has not already been seen, just link it up to the
+          * destination value. If the value *has* been seen, then replace the
+          * existing defs/uses of that value with the new destination,
+          * effectively coalescing it all into one variable.
+          *
+          * Unfortunately there is the additional case of a constant. In that
+          * case, we just keep track of it, and at the end, will append it to
+          * the start of the basic block from which it is supposed to have
+          * come.
+          */
+         PHINode *node = (PHINode *)&i;
+         for (unsigned c = 0; c < node->getNumIncomingValues(); c++) {
+            const Value *val = node->getIncomingValue(c);
+            nv50::Value *v = GetOrNull(values, val);
+            if (!v) {
+               values[val] = dst;
+               continue;
+            }
+            const BasicBlock *bb = node->getIncomingBlock(c);
+            nv50::BasicBlock *b = GetOrNull(blocks, bb);
+            assert(b);
+            nv50::Instruction *mov = new_Instruction(func, nv50::OP_MOV, nv50::TYPE_U32);
+            mov->setDef(0, dst);
+            mov->setSrc(0, v);
+            phi_moves.insert(std::make_pair(bb, mov));
          }
-         insert(phi);
          break;
       }
       case Instruction::Store: {
          // XXX address space fixing
          nv50::Symbol *sym = new_Symbol(prog, nv50::FILE_MEMORY_GLOBAL, 15);
-         mkLoad(nv50::TYPE_U32, dst, sym, op[1]);
+         mkStore(nv50::OP_EXPORT, nv50::TYPE_U32, sym, NULL, op[0]);
          break;
       }
       case Instruction::GetElementPtr: {
          // XXX add the base address of the addrspace
-         mkMov(dst, op[1]);
+         nv50::Symbol *sym = new_Symbol(prog, nv50::FILE_MEMORY_GLOBAL, 15);
+         mkLoad(nv50::TYPE_U32, dst, sym, op[1]);
          break;
       }
       case Instruction::Add: {
          mkOp2(nv50::OP_ADD, nv50::TYPE_U32, dst, op[0], op[1]);
          break;
       }
-
-
+      case Instruction::ZExt: {
+         mkMov(dst, op[0]);
+         break;
+      }
 
 
       case Instruction::Switch:
@@ -204,7 +246,6 @@ Converter::convert(const Instruction& i)
       case Instruction::Alloca:
       case Instruction::Load:
       case Instruction::Trunc:
-      case Instruction::ZExt:
       case Instruction::SExt:
       case Instruction::FPToUI:
       case Instruction::FPToSI:
@@ -270,10 +311,19 @@ Converter::convert(const Function& function)
          return false;
    }
 
-   // Hook up bb edges. Conveniently, phi nodes in LLVM keep track of which BB
-   // each argument came from (and do so consistently. Add the edges in
-   // reverse of that order (since edges are added to the 'front') so that the
-   // phi nodes in the nv50 ir work out as well.
+   // Add all the phi moves to the ends of the respective bb's. Note that this
+   // must be done before the various branches.
+   for (auto it = phi_moves.begin(); it != phi_moves.end(); ++it) {
+      nv50::BasicBlock *bb = blocks[it->first];
+      assert(bb);
+      nv50::Instruction *i = bb->getExit();
+      while (i && i->op == nv50::OP_BRA)
+         i = i->prev;
+      if (i)
+         bb->insertAfter(i, it->second);
+      else
+         bb->insertHead(it->second);
+   }
 
    //func->cfg.classifyEdges();
 
@@ -281,6 +331,7 @@ Converter::convert(const Function& function)
 
    values.clear();
    blocks.clear();
+   phi_moves.clear();
    return true;
 }
 
@@ -292,7 +343,7 @@ Converter::run()
          StringRef((const char *)info->bin.source, info->bin.sourceLength),
          StringRef("nouveau"), false);
 
-#if HAVE_LLVM < 0x0304
+#if HAVE_LLVM < 0x0305
    Module *module = ParseBitcodeFile(buffer, ctx);
    if (!module) {
       return false;
