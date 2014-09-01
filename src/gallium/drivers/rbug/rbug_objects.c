@@ -249,3 +249,25 @@ rbug_shader_destroy(struct rbug_context *rb_context,
    FREE(rb_shader->tokens);
    FREE(rb_shader);
 }
+
+struct pipe_video_buffer *
+rbug_video_buffer_create(struct rbug_context *rb_context,
+                         const struct pipe_video_buffer *buffer)
+{
+   struct rbug_video_buffer *rb_buffer;
+
+   if (!buffer)
+      return NULL;
+
+   rb_buffer = MALLOC(sizeof(struct rbug_video_buffer));
+
+   rb_buffer->base = *buffer;
+/*
+   rb_buffer->base.get_sampler_view_planes = ;
+   rb_buffer->base.get_sampler_view_components = ;
+   rb_buffer->base.get_surfaces = ;
+*/
+   rb_buffer->buffer = buffer;
+
+   return &rb_buffer->base;
+}

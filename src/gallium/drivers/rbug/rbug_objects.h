@@ -31,6 +31,7 @@
 
 #include "pipe/p_compiler.h"
 #include "pipe/p_state.h"
+#include "pipe/p_video_codec.h"
 
 #include "rbug_screen.h"
 
@@ -90,6 +91,18 @@ struct rbug_transfer
 
    struct pipe_context *pipe;
    struct pipe_transfer *transfer;
+};
+
+
+struct rbug_video_buffer
+{
+   struct pipe_video_buffer base;
+/*
+   struct pipe_sampler_view *planes[VL_NUM_COMPONENTS];
+   struct pipe_sampler_view *components[VL_NUM_COMPONENTS];
+   struct pipe_surface *surfaces[VL_NUM_COMPONENTS * 2];
+*/
+   struct pipe_video_buffer *buffer;
 };
 
 
@@ -223,6 +236,10 @@ rbug_shader_create(struct rbug_context *rb_context,
 void
 rbug_shader_destroy(struct rbug_context *rb_context,
                     struct rbug_shader *rb_shader);
+
+struct pipe_video_buffer *
+rbug_video_buffer_create(struct rbug_context *rb_context,
+                         const struct pipe_video_buffer *buffer);
 
 
 #endif /* RBUG_OBJECTS_H */

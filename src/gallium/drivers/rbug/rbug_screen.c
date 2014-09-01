@@ -90,6 +90,18 @@ rbug_screen_get_shader_param(struct pipe_screen *_screen,
                             param);
 }
 
+static int
+rbug_screen_get_video_param(struct pipe_screen *_screen,
+                            enum pipe_video_profile profile,
+                            enum pipe_video_entrypoint entrypoint,
+                            enum pipe_video_cap param)
+{
+   struct rbug_screen *rb_screen = rbug_screen(_screen);
+   struct pipe_screen *screen = rb_screen->screen;
+
+   return screen->get_video_param(screen, profile, entrypoint, param);
+}
+
 static float
 rbug_screen_get_paramf(struct pipe_screen *_screen,
                        enum pipe_capf param)
@@ -116,6 +128,21 @@ rbug_screen_is_format_supported(struct pipe_screen *_screen,
                                       target,
                                       sample_count,
                                       tex_usage);
+}
+
+static boolean
+rbug_screen_is_video_format_supported(struct pipe_screen *_screen,
+                                      enum pipe_format format,
+                                      enum pipe_video_profile profile,
+                                      enum pipe_video_entrypoint entrypoint)
+{
+   struct rbug_screen *rb_screen = rbug_screen(_screen);
+   struct pipe_screen *screen = rb_screen->screen;
+
+   return screen->is_video_format_supported(screen,
+                                            format,
+                                            profile,
+                                            entrypoint);
 }
 
 static struct pipe_context *
@@ -269,8 +296,10 @@ rbug_screen_create(struct pipe_screen *screen)
    rb_screen->base.get_vendor = rbug_screen_get_vendor;
    rb_screen->base.get_param = rbug_screen_get_param;
    rb_screen->base.get_shader_param = rbug_screen_get_shader_param;
+   rb_screen->base.get_video_param = rbug_screen_get_video_param;
    rb_screen->base.get_paramf = rbug_screen_get_paramf;
    rb_screen->base.is_format_supported = rbug_screen_is_format_supported;
+   rb_screen->base.is_video_format_supported = rbug_screen_is_video_format_supported;
    rb_screen->base.context_create = rbug_screen_context_create;
    rb_screen->base.resource_create = rbug_screen_resource_create;
    rb_screen->base.resource_from_handle = rbug_screen_resource_from_handle;

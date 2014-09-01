@@ -99,6 +99,17 @@ libvdpau_gallium_la_LIBADD += \
 
 endif # HAVE_GALLIUM_STATIC_TARGETS
 
+libvdpau_gallium_la_CPPFLAGS += \
+	-DGALLIUM_GALAHAD \
+	-DGALLIUM_NOOP \
+	-DGALLIUM_RBUG \
+	-DGALLIUM_TRACE
+libvdpau_gallium_la_LIBADD += \
+	$(top_builddir)/src/gallium/drivers/galahad/libgalahad.la \
+	$(top_builddir)/src/gallium/drivers/noop/libnoop.la \
+	$(top_builddir)/src/gallium/drivers/rbug/librbug.la \
+	$(top_builddir)/src/gallium/drivers/trace/libtrace.la
+
 if HAVE_MESA_LLVM
 libvdpau_gallium_la_LIBADD += $(LLVM_LIBS)
 libvdpau_gallium_la_LDFLAGS += $(LLVM_LDFLAGS)

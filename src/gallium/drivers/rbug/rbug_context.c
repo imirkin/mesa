@@ -1151,6 +1151,38 @@ rbug_context_transfer_inline_write(struct pipe_context *_context,
 }
 
 
+static struct pipe_video_codec *
+rbug_context_create_video_codec(struct pipe_context *_context,
+                                const struct pipe_video_codec *templat)
+{
+   struct rbug_context *rb_pipe = rbug_context(_context);
+   struct pipe_context *context = rb_pipe->pipe;
+   struct pipe_video_codec *ret;
+
+   pipe_mutex_lock(rb_pipe->call_mutex);
+   ret = context->create_video_codec(context, templat);
+   pipe_mutex_unlock(rb_pipe->call_mutex);
+
+   return ret;
+}
+
+
+static struct pipe_video_buffer *
+rbug_context_create_video_buffer(struct pipe_context *_context,
+                                const struct pipe_video_buffer *templat)
+{
+   struct rbug_context *rb_pipe = rbug_context(_context);
+   struct pipe_context *context = rb_pipe->pipe;
+   struct pipe_video_buffer *ret;
+
+   pipe_mutex_lock(rb_pipe->call_mutex);
+   ret = context->create_video_buffer(context, templat);
+   pipe_mutex_unlock(rb_pipe->call_mutex);
+
+   return ret;
+}
+
+
 struct pipe_context *
 rbug_context_create(struct pipe_screen *_screen, struct pipe_context *pipe)
 {
@@ -1235,6 +1267,9 @@ rbug_context_create(struct pipe_screen *_screen, struct pipe_context *pipe)
    rb_pipe->base.transfer_unmap = rbug_context_transfer_unmap;
    rb_pipe->base.transfer_flush_region = rbug_context_transfer_flush_region;
    rb_pipe->base.transfer_inline_write = rbug_context_transfer_inline_write;
+
+   rb_pipe->base.create_video_codec = rbug_context_create_video_codec;
+   rb_pipe->base.create_video_buffer = rbug_context_create_video_buffer;
 
    rb_pipe->pipe = pipe;
 
