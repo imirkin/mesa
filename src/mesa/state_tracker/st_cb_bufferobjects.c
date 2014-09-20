@@ -231,6 +231,9 @@ st_bufferobj_data(struct gl_context *ctx,
    case GL_DRAW_INDIRECT_BUFFER:
       bind = PIPE_BIND_COMMAND_ARGS_BUFFER;
       break;
+   case GL_ATOMIC_COUNTER_BUFFER:
+      bind = PIPE_BIND_SHADER_BUFFER;
+      break;
    default:
       bind = 0;
    }
