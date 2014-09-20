@@ -80,6 +80,8 @@ st_bufferobj_free(struct gl_context *ctx, struct gl_buffer_object *obj)
    assert(obj->RefCount == 0);
    _mesa_buffer_unmap_all_mappings(ctx, obj);
 
+   if (st_obj->surface)
+      pipe_surface_release(st_context(ctx)->pipe, &st_obj->surface);
    if (st_obj->buffer)
       pipe_resource_reference(&st_obj->buffer, NULL);
 
@@ -229,6 +231,9 @@ st_bufferobj_data(struct gl_context *ctx,
       break;
    case GL_DRAW_INDIRECT_BUFFER:
       bind = PIPE_BIND_COMMAND_ARGS_BUFFER;
+      break;
+   case GL_ATOMIC_COUNTER_BUFFER:
+      bind = PIPE_BIND_SHADER_RESOURCE;
       break;
    default:
       bind = 0;

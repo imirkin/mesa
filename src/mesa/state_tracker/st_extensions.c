@@ -205,6 +205,9 @@ void st_init_limits(struct pipe_screen *screen,
                                           c->MaxUniformBlockSize / 4 *
                                           pc->MaxUniformBlocks);
 
+      pc->MaxAtomicCounters = MAX_ATOMIC_COUNTERS;
+      pc->MaxAtomicBuffers = 16;
+
       /* Gallium doesn't really care about local vs. env parameters so use the
        * same limits.
        */

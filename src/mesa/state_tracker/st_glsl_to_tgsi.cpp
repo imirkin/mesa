@@ -246,6 +246,8 @@ public:
    unsigned tex_offset_num_offset;
    int dead_mask; /**< Used in dead code elimination */
 
+   st_src_reg resource; /**< resource register */
+
    class function_entry *function; /* Set on TGSI_OPCODE_CAL or TGSI_OPCODE_BGNSUB */
 };
 
@@ -328,6 +330,7 @@ public:
 
    int num_address_regs;
    int samplers_used;
+   int resources_used;
    bool indirect_addr_consts;
    
    int glsl_version;
@@ -376,6 +379,8 @@ public:
    virtual void visit(ir_emit_vertex *);
    virtual void visit(ir_end_primitive *);
    /*@}*/
+
+   void visit_atomic_counter_intrinsic(ir_call *);
 
    st_src_reg result;
 
@@ -505,6 +510,19 @@ is_tex_instruction(unsigned opcode)
    return info->is_tex;
 }
 
+static bool
+is_resource_instruction(unsigned opcode)
+{
+   switch (opcode) {
+   case TGSI_OPCODE_LOAD:
+   case TGSI_OPCODE_STORE:
+   case TGSI_OPCODE_ATOMUADD:
+      return true;
+   default:
+      return false;
+   }
+}
+
 static unsigned
 num_inst_dst_regs(unsigned opcode)
 {
@@ -516,7 +534,7 @@ static unsigned
 num_inst_src_regs(unsigned opcode)
 {
    const tgsi_opcode_info* info = tgsi_get_opcode_info(opcode);
-   return info->is_tex ? info->num_src - 1 : info->num_src;
+   return info->is_tex || is_resource_instruction(opcode) ? info->num_src - 1 : info->num_src;
 }
 
 glsl_to_tgsi_instruction *
@@ -997,11 +1015,11 @@ type_size(const struct glsl_type *type)
       return size;
    case GLSL_TYPE_SAMPLER:
    case GLSL_TYPE_IMAGE:
+   case GLSL_TYPE_ATOMIC_UINT:
       /* Samplers take up one slot in UNIFORMS[], but they're baked in
        * at link time.
        */
       return 1;
-   case GLSL_TYPE_ATOMIC_UINT:
    case GLSL_TYPE_INTERFACE:
    case GLSL_TYPE_VOID:
    case GLSL_TYPE_ERROR:
@@ -2669,12 +2687,72 @@ glsl_to_tgsi_visitor::get_function_signature(ir_function_signature *sig)
 }
 
 void
+glsl_to_tgsi_visitor::visit_atomic_counter_intrinsic(ir_call *ir)
+{
+   const char *callee = ir->callee->function_name();
+   ir_dereference *deref = static_cast<ir_dereference *>(
+      ir->actual_parameters.get_head());
+   ir_variable *location = deref->variable_referenced();
+
+   /* XXX use accept */
+   st_src_reg resource(
+         PROGRAM_SAMPLER, location->data.binding, GLSL_TYPE_ATOMIC_UINT);
+
+   /* Calculate the surface offset */
+   st_src_reg offset;
+   ir_dereference_array *deref_array = deref->as_dereference_array();
+
+   if (deref_array) {
+      offset = get_temp(glsl_type::uint_type);
+
+      deref_array->array_index->accept(this);
+
+      emit(ir, TGSI_OPCODE_MUL, st_dst_reg(offset),
+           this->result, st_src_reg_for_int(ATOMIC_COUNTER_SIZE));
+      emit(ir, TGSI_OPCODE_ADD, st_dst_reg(offset),
+           offset, st_src_reg_for_int(location->data.atomic.offset));
+   } else {
+      offset = st_src_reg_for_int(location->data.atomic.offset);
+   }
+
+   ir->return_deref->accept(this);
+   st_dst_reg dst(this->result);
+   dst.writemask = WRITEMASK_X;
+
+   glsl_to_tgsi_instruction *inst;
+
+   if (!strcmp("__intrinsic_atomic_read", callee)) {
+      inst = emit(ir, TGSI_OPCODE_LOAD, dst, offset);
+      inst->resource = resource;
+   } else if (!strcmp("__intrinsic_atomic_increment", callee)) {
+      inst = emit(ir, TGSI_OPCODE_ATOMUADD, dst, offset,
+                  st_src_reg_for_int(1));
+      inst->resource = resource;
+   } else if (!strcmp("__intrinsic_atomic_predecrement", callee)) {
+      inst = emit(ir, TGSI_OPCODE_ATOMUADD, dst, offset,
+                  st_src_reg_for_int(-1));
+      inst->resource = resource;
+      emit(ir, TGSI_OPCODE_ADD, dst, this->result, st_src_reg_for_int(-1));
+   }
+}
+
+void
 glsl_to_tgsi_visitor::visit(ir_call *ir)
 {
    glsl_to_tgsi_instruction *call_inst;
    ir_function_signature *sig = ir->callee;
+   const char *callee = sig->function_name();
    function_entry *entry = get_function_signature(sig);
    int i;
+
+   debug_printf("callee: %s\n", callee);
+   /* Filter out intrinsics */
+   if (!strcmp("__intrinsic_atomic_read", callee) ||
+       !strcmp("__intrinsic_atomic_increment", callee) ||
+       !strcmp("__intrinsic_atomic_predecrement", callee)) {
+      visit_atomic_counter_intrinsic(ir);
+      return;
+   }
 
    /* Process in parameters. */
    foreach_two_lists(formal_node, &sig->parameters,
@@ -3160,6 +3238,7 @@ glsl_to_tgsi_visitor::glsl_to_tgsi_visitor()
    current_function = NULL;
    num_address_regs = 0;
    samplers_used = 0;
+   resources_used = 0;
    indirect_addr_consts = false;
    glsl_version = 0;
    native_integers = false;
@@ -3191,6 +3270,7 @@ static void
 count_resources(glsl_to_tgsi_visitor *v, gl_program *prog)
 {
    v->samplers_used = 0;
+   v->resources_used = 0;
 
    foreach_in_list(glsl_to_tgsi_instruction, inst, &v->instructions) {
       if (is_tex_instruction(inst->op)) {
@@ -3201,6 +3281,9 @@ count_resources(glsl_to_tgsi_visitor *v, gl_program *prog)
                prog->ShadowSamplers |= 1 << (inst->sampler.index + i);
             }
          }
+      }
+      if (is_resource_instruction(inst->op)) {
+         v->resources_used |= 1 << inst->resource.index;
       }
    }
    
@@ -3680,6 +3763,7 @@ glsl_to_tgsi_visitor::copy_propagate(void)
 int
 glsl_to_tgsi_visitor::eliminate_dead_code(void)
 {
+   return 0;
    glsl_to_tgsi_instruction **writes = rzalloc_array(mem_ctx,
                                                      glsl_to_tgsi_instruction *,
                                                      this->next_temp * 4);
@@ -3731,6 +3815,7 @@ glsl_to_tgsi_visitor::eliminate_dead_code(void)
       case TGSI_OPCODE_UIF:
          ++level;
          /* fallthrough to default case to mark the condition as read */
+
       
       default:
          /* Continuing the block, clear any channels from the write array that
@@ -3929,6 +4014,7 @@ get_pixel_transfer_visitor(struct st_fragment_program *fp,
    v->next_temp = original->next_temp;
    v->num_address_regs = original->num_address_regs;
    v->samplers_used = prog->SamplersUsed = original->samplers_used;
+   v->resources_used = original->resources_used;
    v->indirect_addr_consts = original->indirect_addr_consts;
    memcpy(&v->immediates, &original->immediates, sizeof(v->immediates));
    v->num_immediates = original->num_immediates;
@@ -4061,6 +4147,7 @@ get_bitmap_visitor(struct st_fragment_program *fp,
    v->next_temp = original->next_temp;
    v->num_address_regs = original->num_address_regs;
    v->samplers_used = prog->SamplersUsed = original->samplers_used;
+   v->resources_used = original->resources_used;
    v->indirect_addr_consts = original->indirect_addr_consts;
    memcpy(&v->immediates, &original->immediates, sizeof(v->immediates));
    v->num_immediates = original->num_immediates;
@@ -4131,6 +4218,7 @@ struct st_translate {
    struct ureg_src inputs[PIPE_MAX_SHADER_INPUTS];
    struct ureg_dst address[3];
    struct ureg_src samplers[PIPE_MAX_SAMPLERS];
+   struct ureg_src resources[PIPE_MAX_SAMPLERS /* XXX */];
    struct ureg_src systemValues[SYSTEM_VALUE_MAX];
    struct tgsi_texture_offset tex_offsets[MAX_GLSL_TEXTURE_OFFSET];
    unsigned array_sizes[MAX_ARRAYS];
@@ -4506,13 +4594,13 @@ compile_tgsi_instruction(struct st_translate *t,
                          bool clamp_dst_color_output)
 {
    struct ureg_program *ureg = t->ureg;
-   GLuint i;
+   int i;
    struct ureg_dst dst[1];
    struct ureg_src src[4];
    struct tgsi_texture_offset texoffsets[MAX_GLSL_TEXTURE_OFFSET];
 
-   unsigned num_dst;
-   unsigned num_src;
+   int num_dst;
+   int num_src;
    unsigned tex_target;
 
    num_dst = num_inst_dst_regs(inst->op);
@@ -4559,7 +4647,7 @@ compile_tgsi_instruction(struct st_translate *t,
          src[num_src] =
             ureg_src_indirect(src[num_src], ureg_src(t->address[2]));
       num_src++;
-      for (i = 0; i < inst->tex_offset_num_offset; i++) {
+      for (i = 0; i < (int)inst->tex_offset_num_offset; i++) {
          texoffsets[i] = translate_tex_offset(t, &inst->tex_offsets[i], i);
       }
       tex_target = st_translate_texture_target(inst->tex_target, inst->tex_shadow);
@@ -4571,6 +4659,19 @@ compile_tgsi_instruction(struct st_translate *t,
                     texoffsets, inst->tex_offset_num_offset,
                     src, num_src);
       return;
+
+   case TGSI_OPCODE_LOAD:
+   case TGSI_OPCODE_STORE:
+   case TGSI_OPCODE_ATOMUADD:
+   /* XXX the other atomic ops */
+      for (i = num_src - 1; i >= 0; i--)
+         src[i + 1] = src[i];
+      num_src++;
+      src[0] = t->resources[inst->resource.index];
+      if (inst->resource.reladdr)
+         src[0] = ureg_src_indirect(src[0], ureg_src(t->address[2]));
+      ureg_insn(ureg, inst->op, dst, num_dst, src, num_src);
+      break;
 
    case TGSI_OPCODE_SCS:
       dst[0] = ureg_writemask(dst[0], TGSI_WRITEMASK_XY);
@@ -5104,6 +5205,12 @@ st_translate_program(
    for (i = 0; i < ctx->Const.Program[MESA_SHADER_FRAGMENT].MaxTextureImageUnits; i++) {
       if (program->samplers_used & (1 << i)) {
          t->samplers[i] = ureg_DECL_sampler(ureg, i);
+      }
+   }
+
+   for (i = 0; i < ctx->Const.Program[MESA_SHADER_FRAGMENT].MaxAtomicBuffers; i++) {
+      if (program->resources_used & (1 << i)) {
+         t->resources[i] = ureg_DECL_resource(ureg, i, PIPE_BUFFER, 1, 1);
       }
    }
 

@@ -52,6 +52,7 @@ struct u_upload_mgr;
 #define ST_NEW_VERTEX_ARRAYS           (1 << 6)
 #define ST_NEW_RASTERIZER              (1 << 7)
 #define ST_NEW_UNIFORM_BUFFER          (1 << 8)
+#define ST_NEW_ATOMIC_BUFFER           (1 << 9)
 
 
 struct st_state_flags {
