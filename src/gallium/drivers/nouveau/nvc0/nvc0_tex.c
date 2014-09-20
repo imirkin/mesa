@@ -648,7 +648,30 @@ nve4_set_surface_info(struct nouveau_pushbuf *push,
 static INLINE void
 nvc0_update_surface_bindings(struct nvc0_context *nvc0)
 {
-   /* TODO */
+   struct nouveau_pushbuf *push = nvc0->base.pushbuf;
+   int i, s;
+
+   for (s = 0; s < 5; s++) {
+      BEGIN_NVC0(push, NVC0_3D(CB_SIZE), 3);
+      PUSH_DATA (push, 512);
+      PUSH_DATAh(push, nvc0->screen->uniform_bo->offset + (5 << 16) + (s << 9));
+      PUSH_DATA (push, nvc0->screen->uniform_bo->offset + (5 << 16) + (s << 9));
+      BEGIN_1IC0(push, NVC0_3D(CB_POS), 1 + 2 * NVC0_MAX_SURFACE_SLOTS);
+      PUSH_DATA (push, 0);
+      for (i = 0; i < NVC0_MAX_SURFACE_SLOTS; i++) {
+         struct nv50_surface *sf = nv50_surface(nvc0->surfaces[s][i]);
+         if (sf) {
+            struct nv04_resource *res = nv04_resource(sf->base.texture);
+            debug_printf("surface %d %d: %016lx\n", s, i, res->address + sf->offset);
+            PUSH_DATA (push, res->address + sf->offset);
+            PUSH_DATAh(push, res->address + sf->offset);
+            BCTX_REFN(nvc0->bufctx_3d, SUF, res, RDWR);
+         } else {
+            PUSH_DATA (push, 0);
+            PUSH_DATA (push, 0);
+         }
+      }
+   }
 }
 
 static INLINE void

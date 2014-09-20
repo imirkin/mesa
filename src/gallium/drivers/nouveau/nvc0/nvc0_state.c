@@ -1120,10 +1120,10 @@ nvc0_bind_surfaces_range(struct nvc0_context *nvc0, const unsigned t,
    }
    nvc0->surfaces_dirty[t] |= mask;
 
-   if (t == 0)
-      nouveau_bufctx_reset(nvc0->bufctx_3d, NVC0_BIND_SUF);
-   else
+   if (t == 5)
       nouveau_bufctx_reset(nvc0->bufctx_cp, NVC0_BIND_CP_SUF);
+   else
+      nouveau_bufctx_reset(nvc0->bufctx_3d, NVC0_BIND_SUF);
 }
 
 static void
@@ -1131,17 +1131,19 @@ nvc0_set_compute_resources(struct pipe_context *pipe,
                            unsigned start, unsigned nr,
                            struct pipe_surface **resources)
 {
-   nvc0_bind_surfaces_range(nvc0_context(pipe), 1, start, nr, resources);
+   nvc0_bind_surfaces_range(nvc0_context(pipe), 6, start, nr, resources);
 
    nvc0_context(pipe)->dirty_cp |= NVC0_NEW_CP_SURFACES;
 }
 
 static void
 nvc0_set_shader_resources(struct pipe_context *pipe,
+                          unsigned shader,
                           unsigned start, unsigned nr,
                           struct pipe_surface **resources)
 {
-   nvc0_bind_surfaces_range(nvc0_context(pipe), 0, start, nr, resources);
+   const unsigned s = nvc0_shader_stage(shader);
+   nvc0_bind_surfaces_range(nvc0_context(pipe), s, start, nr, resources);
 
    nvc0_context(pipe)->dirty |= NVC0_NEW_SURFACES;
 }
@@ -1265,7 +1267,7 @@ nvc0_init_state_functions(struct nvc0_context *nvc0)
 
    pipe->set_global_binding = nvc0_set_global_bindings;
    pipe->set_compute_resources = nvc0_set_compute_resources;
-   /*pipe->set_shader_resources = nvc0_set_shader_resources;*/
+   pipe->set_shader_resources = nvc0_set_shader_resources;
 
    nvc0->sample_mask = ~0;
    nvc0->min_samples = 1;

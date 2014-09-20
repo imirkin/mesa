@@ -50,7 +50,7 @@ nv50_surface_from_buffer(struct pipe_context *pipe,
    sf->offset =
       templ->u.buf.first_element * util_format_get_blocksize(sf->base.format);
 
-   sf->offset &= ~0x7f; /* FIXME: RT_ADDRESS requires 128 byte alignment */
+   //sf->offset &= ~0x7f; /* FIXME: RT_ADDRESS requires 128 byte alignment */
 
    sf->width = templ->u.buf.last_element - templ->u.buf.first_element + 1;
    sf->height = 1;

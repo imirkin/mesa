@@ -198,9 +198,10 @@ struct nvc0_context {
 
    struct nvc0_blitctx *blit;
 
-   struct pipe_surface *surfaces[2][NVC0_MAX_SURFACE_SLOTS];
-   uint16_t surfaces_dirty[2];
-   uint16_t surfaces_valid[2];
+   /* NOTE: some of these surfaces may reference buffers */
+   struct pipe_surface *surfaces[6][NVC0_MAX_SURFACE_SLOTS];
+   uint16_t surfaces_dirty[6];
+   uint16_t surfaces_valid[6];
 
    struct util_dynarray global_residents;
 };

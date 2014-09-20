@@ -950,6 +950,7 @@ bool
 NVC0LoweringPass::handleATOM(Instruction *atom)
 {
    SVSemantic sv;
+   Value *ptr = atom->getIndirect(0, 0), *base;
 
    switch (atom->src(0).getFile()) {
    case FILE_MEMORY_LOCAL:
@@ -960,11 +961,16 @@ NVC0LoweringPass::handleATOM(Instruction *atom)
       break;
    default:
       assert(atom->src(0).getFile() == FILE_MEMORY_GLOBAL);
+      base = loadResInfo64(NULL, atom->getSrc(0)->reg.fileIndex * 4);
+      assert(base->reg.size == 8);
+      if (ptr)
+         base = bld.mkOp2v(OP_ADD, TYPE_U64, base, base, ptr);
+      assert(base->reg.size == 8);
+      atom->setIndirect(0, 0, base);
       return true;
    }
-   Value *base =
+   base =
       bld.mkOp1v(OP_RDSV, TYPE_U32, bld.getScratch(), bld.mkSysVal(sv, 0));
-   Value *ptr = atom->getIndirect(0, 0);
 
    atom->setSrc(0, cloneShallow(func, atom->getSrc(0)));
    atom->getSrc(0)->reg.file = FILE_MEMORY_GLOBAL;
@@ -1014,6 +1020,17 @@ NVC0LoweringPass::loadResInfo32(Value *ptr, uint32_t off)
    off += prog->driver->io.suInfoBase;
    return bld.
       mkLoadv(TYPE_U32, bld.mkSymbol(FILE_MEMORY_CONST, b, TYPE_U32, off), ptr);
+}
+
+inline Value *
+NVC0LoweringPass::loadResInfo64(Value *ptr, uint32_t off)
+{
+   Value *ret;
+   uint8_t b = prog->driver->io.resInfoCBSlot;
+   off += prog->driver->io.suInfoBase;
+   bld.mkLoad(TYPE_U64, (ret = bld.getScratch(8)),
+              bld.mkSymbol(FILE_MEMORY_CONST, b, TYPE_U32, off), ptr);
+   return ret;
 }
 
 inline Value *

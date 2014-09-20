@@ -118,6 +118,7 @@ private:
    void readTessCoord(LValue *dst, int c);
 
    Value *loadResInfo32(Value *ptr, uint32_t off);
+   Value *loadResInfo64(Value *ptr, uint32_t off);
    Value *loadMsInfo32(Value *ptr, uint32_t off);
    Value *loadTexHandle(Value *ptr, unsigned int slot);
 

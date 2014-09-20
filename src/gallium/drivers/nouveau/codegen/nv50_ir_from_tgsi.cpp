@@ -2109,7 +2109,11 @@ Converter::handleATOM(Value *dst0[4], DataType ty, uint16_t subOp)
 
    getResourceCoords(srcv, r, 1);
 
-   if (isResourceSpecial(r)) {
+   /* XXX use SURE* for raw resources, but for now we don't have the logic to
+    * process coordinates on nvc0 and, we don't have image support higher up
+    * in the stack.
+    */
+   if (isResourceSpecial(r) || isResourceRaw(code, r)) {
       assert(r != TGSI_RESOURCE_INPUT);
       Instruction *insn;
       insn = mkOp2(OP_ATOM, ty, dst, getResourceBase(r), fetchSrc(2, 0));
