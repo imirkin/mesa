@@ -226,6 +226,7 @@ struct pipe_context {
     * graphics pipeline.  Any resources that were previously bound to
     * the specified range will be unbound after this call.
     *
+    * \param shader     shader stage to attach to
     * \param start      first resource to bind.
     * \param count      number of consecutive resources to bind.
     * \param resources  array of pointers to the resources to bind, it
@@ -234,6 +235,7 @@ struct pipe_context {
     *                   resources will be bound.
     */
    void (*set_shader_resources)(struct pipe_context *,
+                                unsigned shader,
                                 unsigned start, unsigned count,
                                 struct pipe_surface **resources);
 

@@ -1164,7 +1164,7 @@ ilo_init_state_functions(struct ilo_context *ilo)
    ilo->base.set_scissor_states = ilo_set_scissor_states;
    ilo->base.set_viewport_states = ilo_set_viewport_states;
    ilo->base.set_sampler_views = ilo_set_sampler_views;
-   ilo->base.set_shader_resources = ilo_set_shader_resources;
+   /*ilo->base.set_shader_resources = ilo_set_shader_resources;*/
    ilo->base.set_vertex_buffers = ilo_set_vertex_buffers;
    ilo->base.set_index_buffer = ilo_set_index_buffer;
 
