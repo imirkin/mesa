@@ -333,6 +333,12 @@ ureg_DECL_sampler_view(struct ureg_program *,
                        unsigned return_type_z,
                        unsigned return_type_w );
 
+struct ureg_src
+ureg_DECL_resource( struct ureg_program *ureg,
+                    unsigned index,
+                    unsigned target,
+                    boolean wr,
+                    boolean raw );
 
 static INLINE struct ureg_src
 ureg_imm4f( struct ureg_program *ureg,

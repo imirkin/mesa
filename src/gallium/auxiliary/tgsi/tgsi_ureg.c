@@ -48,6 +48,7 @@ union tgsi_any_token {
    struct tgsi_declaration_range decl_range;
    struct tgsi_declaration_dimension decl_dim;
    struct tgsi_declaration_interp decl_interp;
+   struct tgsi_declaration_resource decl_resource;
    struct tgsi_declaration_semantic decl_semantic;
    struct tgsi_declaration_sampler_view decl_sampler_view;
    struct tgsi_declaration_array array;
@@ -153,6 +154,14 @@ struct ureg_program
       unsigned return_type_w;
    } sampler_view[PIPE_MAX_SHADER_SAMPLER_VIEWS];
    unsigned nr_sampler_views;
+
+   struct {
+      unsigned index;
+      unsigned target;
+      boolean wr;
+      boolean raw;
+   } resource[PIPE_MAX_SHADER_RESOURCES];
+   unsigned nr_resources;
 
    struct util_bitmask *free_temps;
    struct util_bitmask *local_temps;
@@ -709,6 +718,35 @@ ureg_DECL_sampler_view(struct ureg_program *ureg,
    }
 
    assert(0);
+   return reg;
+}
+
+/* Allocate a new resource.
+ */
+struct ureg_src
+ureg_DECL_resource( struct ureg_program *ureg,
+                    unsigned index,
+                    unsigned target,
+                    boolean wr,
+                    boolean raw )
+{
+   struct ureg_src reg = ureg_src_register(TGSI_FILE_RESOURCE, index);
+   unsigned i;
+
+   for (i = 0; i < ureg->nr_resources; i++)
+      if (ureg->resource[i].index == index)
+         return reg;
+
+   if (i < PIPE_MAX_SAMPLERS) {
+      ureg->resource[i].index = index;
+      ureg->resource[i].target = target;
+      ureg->resource[i].wr = wr;
+      ureg->resource[i].raw = raw;
+      ureg->nr_resources++;
+      return reg;
+   }
+
+   assert( 0 );
    return reg;
 }
 
@@ -1414,6 +1452,31 @@ emit_decl_sampler_view(struct ureg_program *ureg,
 }
 
 static void
+emit_decl_resource(struct ureg_program *ureg,
+                   unsigned index,
+                   unsigned target,
+                   boolean wr,
+                   boolean raw )
+{
+   union tgsi_any_token *out = get_tokens(ureg, DOMAIN_DECL, 3);
+
+   out[0].value = 0;
+   out[0].decl.Type = TGSI_TOKEN_TYPE_DECLARATION;
+   out[0].decl.NrTokens = 3;
+   out[0].decl.File = TGSI_FILE_RESOURCE;
+   out[0].decl.UsageMask = 0xf;
+
+   out[1].value = 0;
+   out[1].decl_range.First = index;
+   out[1].decl_range.Last = index;
+
+   out[2].value = 0;
+   out[2].decl_resource.Resource = target;
+   out[2].decl_resource.Writable = wr;
+   out[2].decl_resource.Raw      = raw;
+}
+
+static void
 emit_immediate( struct ureg_program *ureg,
                 const unsigned *v,
                 unsigned type )
@@ -1584,6 +1647,14 @@ static void emit_decls( struct ureg_program *ureg )
                              ureg->sampler_view[i].return_type_y,
                              ureg->sampler_view[i].return_type_z,
                              ureg->sampler_view[i].return_type_w);
+   }
+
+   for (i = 0; i < ureg->nr_resources; i++) {
+      emit_decl_resource(ureg,
+                         ureg->resource[i].index,
+                         ureg->resource[i].target,
+                         ureg->resource[i].wr,
+                         ureg->resource[i].raw);
    }
 
    if (ureg->const_decls.nr_constant_ranges) {
