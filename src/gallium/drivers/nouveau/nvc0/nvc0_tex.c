@@ -663,8 +663,8 @@ nvc0_update_surface_bindings(struct nvc0_context *nvc0)
          if (sf) {
             struct nv04_resource *res = nv04_resource(sf->base.texture);
             debug_printf("surface %d %d: %016lx\n", s, i, res->address + sf->offset);
-            PUSH_DATA (push, res->address + sf->offset);
             PUSH_DATAh(push, res->address + sf->offset);
+            PUSH_DATA (push, res->address + sf->offset);
             BCTX_REFN(nvc0->bufctx_3d, SUF, res, RDWR);
          } else {
             PUSH_DATA (push, 0);

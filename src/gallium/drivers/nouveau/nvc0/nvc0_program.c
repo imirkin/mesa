@@ -418,7 +418,7 @@ nvc0_fp_gen_header(struct nvc0_program *fp, struct nv50_ir_prog_info *info)
    unsigned i, c, a, m;
 
    /* just 00062 on Kepler */
-   fp->hdr[0] = 0x20062 | (5 << 10);
+   fp->hdr[0] = 0x00062 | (5 << 10);
    fp->hdr[5] = 0x80000000; /* getting a trap if FRAG_COORD_UMASK.w = 0 */
 
    if (info->prop.fp.usesDiscard)
@@ -626,7 +626,7 @@ nvc0_program_translate(struct nvc0_program *prog, uint16_t chipset)
    if (ret)
       goto out;
 
-   if (info->bin.tlsSpace) {
+   if (info->bin.tlsSpace || info->io.globalAccess) {
       assert(info->bin.tlsSpace < (1 << 24));
       prog->hdr[0] |= 1 << 26;
       prog->hdr[1] |= align(info->bin.tlsSpace, 0x10); /* l[] size */

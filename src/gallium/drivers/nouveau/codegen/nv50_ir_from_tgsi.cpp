@@ -1087,6 +1087,7 @@ bool Source::scanInstruction(const struct tgsi_full_instruction *inst)
             mainTempsInLMem = TRUE;
       } else
       if (src.getFile() == TGSI_FILE_RESOURCE) {
+         info->io.globalAccess |= 1;
          if (src.getIndex(0) == TGSI_RESOURCE_GLOBAL)
             info->io.globalAccess |= (insn.getOpcode() == TGSI_OPCODE_LOAD) ?
                0x1 : 0x2;
@@ -1997,7 +1998,7 @@ Converter::handleLOAD(Value *dst0[4])
             def[c] = getScratch();
       }
 
-      const bool useLd = isResourceSpecial(r) ||
+      const bool useLd = isResourceSpecial(r) || 1 ||
          (info->io.nv50styleSurfaces &&
           code->resources[r].target == TGSI_TEXTURE_BUFFER);
 

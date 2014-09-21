@@ -1025,11 +1025,16 @@ NVC0LoweringPass::loadResInfo32(Value *ptr, uint32_t off)
 inline Value *
 NVC0LoweringPass::loadResInfo64(Value *ptr, uint32_t off)
 {
-   Value *ret;
+   Value *ret, *t0, *t1;
    uint8_t b = prog->driver->io.resInfoCBSlot;
    off += prog->driver->io.suInfoBase;
-   bld.mkLoad(TYPE_U64, (ret = bld.getScratch(8)),
-              bld.mkSymbol(FILE_MEMORY_CONST, b, TYPE_U32, off), ptr);
+   t0 = bld.mkLoadv(
+         TYPE_U32, bld.mkSymbol(FILE_MEMORY_CONST, b, TYPE_U32, off), ptr);
+   t1 = bld.mkLoadv(
+         TYPE_U32, bld.mkSymbol(FILE_MEMORY_CONST, b, TYPE_U32, off + 4), ptr);
+   ret = bld.getSSA(8);
+   bld.mkOp2(OP_MERGE, TYPE_U64, ret, t0, t1);
+
    return ret;
 }
 
