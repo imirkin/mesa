@@ -2751,6 +2751,38 @@ trans_idiv(const struct instr_translater *t,
 	put_dst(ctx, inst, dst);
 }
 
+static void
+trans_lsb(const struct instr_translater *t,
+		struct ir3_compile_context *ctx,
+		struct tgsi_full_instruction *inst)
+{
+	struct ir3_instruction *instr;
+	struct tgsi_dst_register *dst = get_dst(ctx, inst);
+	struct tgsi_src_register *src = &inst->Src[0].Register;
+	struct tgsi_dst_register tmp_dst;
+	struct tgsi_src_register *tmp_src;
+	struct tgsi_src_register thirty_two;
+
+	get_immediate(ctx, &thirty_two, 32);
+
+	tmp_src = get_internal_temp(ctx, &tmp_dst);
+
+	/* bfrev.b tmp, src */
+	instr = instr_create(ctx, 2, OPC_BFREV_B);
+	vectorize(ctx, instr, &tmp_dst, 1, src, 0);
+
+	/* clz.b tmp, tmp */
+	instr = instr_create(ctx, 2, OPC_CLZ_B);
+	vectorize(ctx, instr, &tmp_dst, 1, tmp_src, 0);
+
+	/* sub.u dst, 32, tmp */
+	instr = instr_create(ctx, 2, OPC_SUB_U);
+	vectorize(ctx, instr, dst, 2, &thirty_two, 0, tmp_src, 0);
+
+	put_dst(ctx, inst, dst);
+}
+
+
 /*
  * Handlers for TGSI instructions which do have 1:1 mapping to native
  * instructions:
@@ -2984,6 +3016,12 @@ static const struct instr_translater translaters[TGSI_OPCODE_LAST] = {
 	INSTR(U2F,          trans_cov),
 	INSTR(F2I,          trans_cov),
 	INSTR(F2U,          trans_cov),
+	INSTR(BREV,         instr_cat2, .opc = OPC_BFREV_B),
+	INSTR(POPC,         instr_cat2, .opc = OPC_CBITS_B),
+	INSTR(IMSB,         instr_cat2, .opc = OPC_CLZ_S),
+	INSTR(UMSB,         instr_cat2, .opc = OPC_CLZ_B),
+	INSTR(LSB,          trans_lsb),
+	/* TODO: IBFE, UBFE, and BFI */
 };
 
 static ir3_semantic
