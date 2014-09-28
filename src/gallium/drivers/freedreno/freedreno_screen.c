@@ -205,7 +205,6 @@ fd_screen_get_param(struct pipe_screen *pscreen, enum pipe_cap param)
 	case PIPE_CAP_QUERY_PIPELINE_STATISTICS:
 	case PIPE_CAP_TEXTURE_BORDER_COLOR_QUIRK:
 	case PIPE_CAP_TGSI_VS_LAYER_VIEWPORT:
-	case PIPE_CAP_MAX_TEXTURE_GATHER_COMPONENTS:
 	case PIPE_CAP_TEXTURE_GATHER_SM5:
 	case PIPE_CAP_FAKE_SW_MSAA:
 	case PIPE_CAP_TEXTURE_QUERY_LOD:
@@ -251,6 +250,9 @@ fd_screen_get_param(struct pipe_screen *pscreen, enum pipe_cap param)
 
 	case PIPE_CAP_MAX_TEXTURE_ARRAY_LAYERS:
 		return (is_a3xx(screen) || is_a4xx(screen)) ? 256 : 0;
+
+	case PIPE_CAP_MAX_TEXTURE_GATHER_COMPONENTS:
+		return is_a4xx(screen) ? 4 : 0;
 
 	/* Render targets. */
 	case PIPE_CAP_MAX_RENDER_TARGETS:

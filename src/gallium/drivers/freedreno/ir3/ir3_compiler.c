@@ -1464,6 +1464,7 @@ fill_tex_info(struct ir3_compile_context *ctx,
 		/* fallthrough */
 	case TGSI_OPCODE_TEX:
 	case TGSI_OPCODE_TXD:
+	case TGSI_OPCODE_TG4:
 		info->args = 1;
 		break;
 	}
@@ -1579,6 +1580,10 @@ trans_samp(const struct instr_translater *t,
 		orig = &inst->Src[1].Register;
 		samp = &inst->Src[2].Register;
 		break;
+	case TGSI_OPCODE_TG4:
+		orig = &inst->Src[0].Register;
+		samp = &inst->Src[2].Register;
+		break;
 	case TGSI_OPCODE_TXD:
 		orig = &inst->Src[0].Register;
 		dpdx = &inst->Src[1].Register;
@@ -1649,6 +1654,19 @@ trans_samp(const struct instr_translater *t,
 	instr->cat5.samp = samp->Index;
 	instr->cat5.tex  = samp->Index;
 	instr->flags |= tinf.flags;
+
+	if (inst->Instruction.Opcode == TGSI_OPCODE_TG4) {
+		/* The component to select is in src1, modify the opcode
+		 * accordingly. It is guaranteed to be an immediate.
+		 */
+		struct tgsi_src_register *component = &inst->Src[1].Register;
+		int comp;
+
+		compile_assert(ctx, component->File == TGSI_FILE_IMMEDIATE);
+		comp = ctx->so->immediates[component->Index].val[component->SwizzleX];
+		compile_assert(ctx, comp >= 0 && comp < 4);
+		instr->opc += comp;
+	}
 
 	add_dst_reg_wrmask(ctx, instr, dst, 0, dst->WriteMask);
 
@@ -2932,6 +2950,7 @@ static const struct instr_translater translaters[TGSI_OPCODE_LAST] = {
 	INSTR(TXL,          trans_samp, .opc = OPC_SAML),
 	INSTR(TXD,          trans_samp, .opc = OPC_SAMGQ),
 	INSTR(TXF,          trans_samp, .opc = OPC_ISAML),
+	INSTR(TG4,          trans_samp, .opc = OPC_GATHER4R),
 	INSTR(TXQ,          trans_txq),
 	INSTR(DDX,          trans_deriv, .opc = OPC_DSX),
 	INSTR(DDY,          trans_deriv, .opc = OPC_DSY),
