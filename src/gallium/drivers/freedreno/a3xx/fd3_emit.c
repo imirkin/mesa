@@ -445,6 +445,7 @@ fd3_emit_vertex_bufs(struct fd_ringbuffer *ring, struct fd3_emit *emit)
 	const struct fd_vertex_state *vtx = emit->vtx;
 	struct ir3_shader_variant *vp = fd3_emit_get_vp(emit);
 	unsigned vertex_regid = regid(63, 0), instance_regid = regid(63, 0);
+	uint32_t max_index = ~0U;
 
 	for (i = 0; i < vp->inputs_count; i++) {
 		uint8_t semantic = sem2name(vp->inputs[i].semantic);
@@ -476,8 +477,14 @@ fd3_emit_vertex_bufs(struct fd_ringbuffer *ring, struct fd3_emit *emit)
 				instance_regid != regid(63, 0);
 			bool isint = util_format_is_pure_integer(pfmt);
 			uint32_t fs = util_format_get_blocksize(pfmt);
+			uint32_t offset = vb->buffer_offset + elem->src_offset;
 
 			debug_assert(fmt != ~0);
+
+			if (vb->stride && !elem->instance_divisor)
+				max_index =
+					MIN2(max_index,
+						 (fd_bo_size(rsc->bo) - offset) / vb->stride - 1);
 
 			OUT_PKT0(ring, REG_A3XX_VFD_FETCH(j), 2);
 			OUT_RING(ring, A3XX_VFD_FETCH_INSTR_0_FETCHSIZE(fs - 1) |
@@ -486,7 +493,7 @@ fd3_emit_vertex_bufs(struct fd_ringbuffer *ring, struct fd3_emit *emit)
 					A3XX_VFD_FETCH_INSTR_0_INDEXCODE(j) |
 					COND(elem->instance_divisor, A3XX_VFD_FETCH_INSTR_0_INSTANCED) |
 					A3XX_VFD_FETCH_INSTR_0_STEPRATE(MAX2(1, elem->instance_divisor)));
-			OUT_RELOC(ring, rsc->bo, vb->buffer_offset + elem->src_offset, 0, 0);
+			OUT_RELOC(ring, rsc->bo, offset, 0, 0);
 
 			OUT_PKT0(ring, REG_A3XX_VFD_DECODE_INSTR(j), 1);
 			OUT_RING(ring, A3XX_VFD_DECODE_INSTR_CONSTFILL |
@@ -502,6 +509,11 @@ fd3_emit_vertex_bufs(struct fd_ringbuffer *ring, struct fd3_emit *emit)
 			total_in += vp->inputs[i].ncomp;
 			j++;
 		}
+	}
+
+	if (emit->info && emit->info->max_index == ~0U) {
+		OUT_PKT0(ring, REG_A3XX_VFD_INDEX_MAX, 1);
+		OUT_RING(ring, max_index);
 	}
 
 	OUT_PKT0(ring, REG_A3XX_VFD_CONTROL_0, 2);

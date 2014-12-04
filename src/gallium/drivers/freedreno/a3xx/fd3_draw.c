@@ -68,10 +68,12 @@ draw_impl(struct fd_context *ctx, struct fd_ringbuffer *ring,
 	OUT_PKT0(ring, REG_A3XX_PC_VERTEX_REUSE_BLOCK_CNTL, 1);
 	OUT_RING(ring, 0x0000000b);             /* PC_VERTEX_REUSE_BLOCK_CNTL */
 
-	OUT_PKT0(ring, REG_A3XX_VFD_INDEX_MIN, 4);
+	OUT_PKT0(ring, REG_A3XX_VFD_INDEX_MIN, info->max_index == ~0U ? 1 : 2);
 	OUT_RING(ring, add_sat(info->min_index, info->index_bias)); /* VFD_INDEX_MIN */
-	OUT_RING(ring, add_sat(info->max_index, info->index_bias)); /* VFD_INDEX_MAX */
-	OUT_RING(ring, info->start_instance);   /* VFD_INSTANCEID_OFFSET */
+	if (info->max_index != ~0U)
+		OUT_RING(ring, add_sat(info->max_index, info->index_bias)); /* VFD_INDEX_MAX */
+
+	OUT_PKT0(ring, REG_A3XX_VFD_INDEX_OFFSET, 1);
 	OUT_RING(ring, info->indexed ? info->index_bias : info->start); /* VFD_INDEX_OFFSET */
 
 	OUT_PKT0(ring, REG_A3XX_PC_RESTART_INDEX, 1);
