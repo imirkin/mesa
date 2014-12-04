@@ -284,6 +284,8 @@ fd3_pipe2vtx(enum pipe_format format)
 enum a3xx_tex_fmt
 fd3_pipe2tex(enum pipe_format format)
 {
+	//if (format == PIPE_FORMAT_DXT5_RGBA)
+	//      return (enum a3xx_tex_fmt)strtol(getenv("TFMT"), 0, 10);
 	if (!formats[format].present)
 		return ~0;
 	return formats[format].tex;
@@ -292,6 +294,8 @@ fd3_pipe2tex(enum pipe_format format)
 enum a3xx_color_fmt
 fd3_pipe2color(enum pipe_format format)
 {
+	//if (format == PIPE_FORMAT_DXT1_RGB)
+	//      return (enum a3xx_color_fmt)strtol(getenv("RB"), 0, 10);
 	if (!formats[format].present)
 		return ~0;
 	return formats[format].rb;
