@@ -77,8 +77,9 @@ NVC0LegalizeSSA::handleRCPRSQ(Instruction *i)
    bld.setPosition(i, false);
 
    // 1. Take the source and it up.
-   Value *src[2], *dst[2], *def = i->getDef(0);
-   bld.mkSplit(src, 4, i->getSrc(0));
+   Value *input = i->getSrc(0);
+   Value *src[2], *dst[2], *guess, *def = i->getDef(0);
+   bld.mkSplit(src, 4, input);
 
    // 2. We don't care about the low 32 bits of the destination. Stick a 0 in.
    dst[0] = bld.loadImm(NULL, 0);
@@ -93,7 +94,42 @@ NVC0LegalizeSSA::handleRCPRSQ(Instruction *i)
 
    // 4. Recombine the two dst pieces back into the original destination.
    bld.setPosition(i, true);
-   bld.mkOp2(OP_MERGE, TYPE_U64, def, dst[0], dst[1]);
+   guess = bld.mkOp2v(OP_MERGE, TYPE_U64, bld.getSSA(8), dst[0], dst[1]);
+
+   // 5. Perform 2 Newton-Raphson steps
+   if (i->op == OP_RCP) {
+      // RCP: x_{n+1} = 2 * x_n - input * x_n^2
+      Value *two = bld.getSSA(8);
+
+      bld.mkCvt(OP_CVT, TYPE_F64, two, TYPE_F32, bld.loadImm(NULL, 2.0f));
+
+      guess = bld.mkOp2v(OP_SUB, TYPE_F64, bld.getSSA(8),
+                         bld.mkOp2v(OP_MUL, TYPE_F64, bld.getSSA(8), two, guess),
+                         bld.mkOp2v(OP_MUL, TYPE_F64, bld.getSSA(8), input,
+                                    bld.mkOp2v(OP_MUL, TYPE_F64, bld.getSSA(8), guess, guess)));
+      guess = bld.mkOp2v(OP_SUB, TYPE_F64, bld.getSSA(8),
+                         bld.mkOp2v(OP_MUL, TYPE_F64, bld.getSSA(8), two, guess),
+                         bld.mkOp2v(OP_MUL, TYPE_F64, bld.getSSA(8), input,
+                                    bld.mkOp2v(OP_MUL, TYPE_F64, bld.getSSA(8), guess, guess)));
+   } else {
+      // RSQ: x_{n+1} = x_n (1.5 - 0.5 * input * x_n^2)
+      Value *half_input = bld.getSSA(8), *three_half = bld.getSSA(8);
+      bld.mkCvt(OP_CVT, TYPE_F64, half_input, TYPE_F32, bld.loadImm(NULL, -0.5f));
+      bld.mkCvt(OP_CVT, TYPE_F64, three_half, TYPE_F32, bld.loadImm(NULL, 1.5f));
+
+      half_input = bld.mkOp2v(OP_MUL, TYPE_F64, bld.getSSA(8), half_input, input);
+      // RSQ: x_{n+1} = x_n * (1.5 - 0.5 * input * x_n^2)
+      guess = bld.mkOp2v(OP_MUL, TYPE_F64, bld.getSSA(8), guess,
+                         bld.mkOp3v(OP_MAD, TYPE_F64, bld.getSSA(8), half_input,
+                                    bld.mkOp2v(OP_MUL, TYPE_F64, bld.getSSA(8), guess, guess),
+                                    three_half));
+      guess = bld.mkOp2v(OP_MUL, TYPE_F64, bld.getSSA(8), guess,
+                         bld.mkOp3v(OP_MAD, TYPE_F64, bld.getSSA(8), half_input,
+                                    bld.mkOp2v(OP_MUL, TYPE_F64, bld.getSSA(8), guess, guess),
+                                    three_half));
+   }
+
+   bld.mkMov(def, guess);
 }
 
 bool
