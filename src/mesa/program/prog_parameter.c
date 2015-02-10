@@ -161,11 +161,11 @@ _mesa_add_parameter(struct gl_program_parameter_list *paramList,
                GLuint remaining = size % 4;
                assert(remaining < 4);
                for (j = 0; j < remaining; j++) {
-                  paramList->ParameterValues[oldNum + i][j].f = values[j].f;
+                  paramList->ParameterValues[oldNum + i][j].u = values[j].u;
                }
                /* fill in remaining positions with zeros */
                for (; j < 4; j++) {
-                  paramList->ParameterValues[oldNum + i][j].f = 0.0f;
+                  paramList->ParameterValues[oldNum + i][j].u = 0;
                }
             }
             values += 4;
@@ -174,7 +174,7 @@ _mesa_add_parameter(struct gl_program_parameter_list *paramList,
          else {
             /* silence valgrind */
             for (j = 0; j < 4; j++)
-            	paramList->ParameterValues[oldNum + i][j].f = 0;
+               paramList->ParameterValues[oldNum + i][j].u = 0;
          }
          size -= 4;
       }
