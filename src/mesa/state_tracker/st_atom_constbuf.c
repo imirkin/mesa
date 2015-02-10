@@ -91,9 +91,9 @@ void st_upload_constants( struct st_context *st,
       cb.buffer_size = paramBytes;
 
       if (ST_DEBUG & DEBUG_CONSTANTS) {
-         debug_printf("%s(shader=%d, numParams=%d, stateFlags=0x%x)\n",
+         debug_printf("%s(shader=%d, numParams=%d, stateFlags=0x%x, size=%d)\n",
                       __FUNCTION__, shader_type, params->NumParameters,
-                      params->StateFlags);
+                      params->StateFlags, paramBytes);
          _mesa_print_parameter_list(params);
       }
 

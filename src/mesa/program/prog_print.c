@@ -982,10 +982,10 @@ _mesa_fprint_parameter_list(FILE *f,
    for (i = 0; i < list->NumParameters; i++){
       struct gl_program_parameter *param = list->Parameters + i;
       const GLfloat *v = (GLfloat *) list->ParameterValues[i];
-      fprintf(f, "param[%d] sz=%d %s %s = {%.3g, %.3g, %.3g, %.3g}",
+      fprintf(f, "param[%d] sz=%d %s %s = {%08x, %08x, %08x, %08x}",
 	      i, param->Size,
 	      _mesa_register_file_name(list->Parameters[i].Type),
-	      param->Name, v[0], v[1], v[2], v[3]);
+	      param->Name, *(uint32_t *)&v[0], *(uint32_t *)&v[1], *(uint32_t *)&v[2], *(uint32_t *)&v[3]);
       fprintf(f, "\n");
    }
 }

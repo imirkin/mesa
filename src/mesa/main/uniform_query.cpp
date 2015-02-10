@@ -470,7 +470,7 @@ log_uniform(const void *values, enum glsl_base_type basicType,
 	 printf("%g ", v[i].f);
 	 break;
       case GLSL_TYPE_DOUBLE:
-         printf("%g ", *(double* )&v[i * 2].f);
+         printf("%016llx ", *(uint64_t* )&v[i * 2].f);
          break;
       default:
 	 assert(!"Should not get here.");
