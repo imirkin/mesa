@@ -194,6 +194,7 @@ private:
    void replaceZero(Instruction *);
 
    LValue *r63;
+   LValue *r127;
 };
 
 bool
@@ -203,6 +204,9 @@ NV50LegalizePostRA::visit(Function *fn)
 
    r63 = new_LValue(fn, FILE_GPR);
    r63->reg.data.id = 63;
+
+   r127 = new_LValue(fn, FILE_GPR);
+   r127->reg.data.id = 127;
 
    // this is actually per-program, but we can do it all on visiting main()
    std::list<Instruction *> *outWrites =
@@ -224,8 +228,12 @@ NV50LegalizePostRA::replaceZero(Instruction *i)
 {
    for (int s = 0; i->srcExists(s); ++s) {
       ImmediateValue *imm = i->getSrc(s)->asImm();
-      if (imm && imm->reg.data.u64 == 0)
-         i->setSrc(s, r63);
+      if (imm && imm->reg.data.u64 == 0) {
+         if (i->sType == TYPE_F64)
+            i->setSrc(s, r127);
+         else
+            i->setSrc(s, r63);
+      }
    }
 }
 
