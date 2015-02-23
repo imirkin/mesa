@@ -388,7 +388,7 @@ TargetNV50::isAccessSupported(DataFile file, DataType ty) const
 bool
 TargetNV50::isOpSupported(operation op, DataType ty) const
 {
-   if (ty == TYPE_F64 && chipset < 0xa0)
+   if (ty == TYPE_F64 && chipset != 0xa0)
       return false;
 
    switch (op) {

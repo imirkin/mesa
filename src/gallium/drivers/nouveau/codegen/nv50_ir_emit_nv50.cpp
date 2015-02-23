@@ -96,9 +96,12 @@ private:
    void emitUADD(const Instruction *);
    void emitAADD(const Instruction *);
    void emitFADD(const Instruction *);
+   void emitDADD(const Instruction *);
    void emitIMUL(const Instruction *);
    void emitFMUL(const Instruction *);
+   void emitDMUL(const Instruction *);
    void emitFMAD(const Instruction *);
+   void emitDMAD(const Instruction *);
    void emitIMAD(const Instruction *);
    void emitISAD(const Instruction *);
 
@@ -923,11 +926,13 @@ CodeEmitterNV50::emitMINMAX(const Instruction *i)
          assert(0);
          break;
       }
-      code[1] |= i->src(0).mod.abs() << 20;
-      code[1] |= i->src(0).mod.neg() << 26;
-      code[1] |= i->src(1).mod.abs() << 19;
-      code[1] |= i->src(1).mod.neg() << 27;
    }
+
+   code[1] |= i->src(0).mod.abs() << 20;
+   code[1] |= i->src(0).mod.neg() << 26;
+   code[1] |= i->src(1).mod.abs() << 19;
+   code[1] |= i->src(1).mod.neg() << 27;
+
    emitForm_MAD(i);
 }
 
@@ -963,6 +968,26 @@ CodeEmitterNV50::emitFMAD(const Instruction *i)
 }
 
 void
+CodeEmitterNV50::emitDMAD(const Instruction *i)
+{
+   const int neg_mul = i->src(0).mod.neg() ^ i->src(1).mod.neg();
+   const int neg_add = i->src(2).mod.neg();
+
+   assert(i->encSize == 8);
+   assert(!i->saturate);
+
+   code[1] = 0x40000000;
+   code[0] = 0xe0000000;
+
+   code[1] |= neg_mul << 26;
+   code[1] |= neg_add << 27;
+
+   roundMode_MAD(i);
+
+   emitForm_MAD(i);
+}
+
+void
 CodeEmitterNV50::emitFADD(const Instruction *i)
 {
    const int neg0 = i->src(0).mod.neg();
@@ -994,6 +1019,25 @@ CodeEmitterNV50::emitFADD(const Instruction *i)
       if (i->saturate)
          code[0] |= 1 << 8;
    }
+}
+
+void
+CodeEmitterNV50::emitDADD(const Instruction *i)
+{
+   const int neg0 = i->src(0).mod.neg();
+   const int neg1 = i->src(1).mod.neg() ^ ((i->op == OP_SUB) ? 1 : 0);
+
+   assert(!(i->src(0).mod | i->src(1).mod).abs());
+   assert(!i->saturate);
+   assert(i->encSize == 8);
+
+   code[1] = 0x60000000;
+   code[0] = 0xe0000000;
+
+   emitForm_ADD(i);
+
+   code[1] |= neg0 << 26;
+   code[1] |= neg1 << 27;
 }
 
 void
@@ -1090,6 +1134,25 @@ CodeEmitterNV50::emitFMUL(const Instruction *i)
 }
 
 void
+CodeEmitterNV50::emitDMUL(const Instruction *i)
+{
+   const int neg = (i->src(0).mod ^ i->src(1).mod).neg();
+
+   assert(!i->saturate);
+   assert(i->encSize == 8);
+
+   code[1] = 0x80000000;
+   code[0] = 0xe0000000;
+
+   if (neg)
+      code[1] |= 0x08000000;
+
+   roundMode_CVT(i->rnd);
+
+   emitForm_MAD(i);
+}
+
+void
 CodeEmitterNV50::emitIMAD(const Instruction *i)
 {
    code[0] = 0x60000000;
@@ -1150,9 +1213,11 @@ CodeEmitterNV50::emitSET(const Instruction *i)
    code[0] = 0x30000000;
    code[1] = 0x60000000;
 
-   emitCondCode(i->asCmp()->setCond, i->sType, 32 + 14);
-
    switch (i->sType) {
+   case TYPE_F64:
+      code[0] = 0xe0000000;
+      code[1] = 0xe0000000;
+      break;
    case TYPE_F32: code[0] |= 0x80000000; break;
    case TYPE_S32: code[1] |= 0x0c000000; break;
    case TYPE_U32: code[1] |= 0x04000000; break;
@@ -1162,6 +1227,9 @@ CodeEmitterNV50::emitSET(const Instruction *i)
       assert(0);
       break;
    }
+
+   emitCondCode(i->asCmp()->setCond, i->sType, 32 + 14);
+
    if (i->src(0).mod.neg()) code[1] |= 0x04000000;
    if (i->src(1).mod.neg()) code[1] |= 0x08000000;
    if (i->src(0).mod.abs()) code[1] |= 0x00100000;
@@ -1725,7 +1793,9 @@ CodeEmitterNV50::emitInstruction(Instruction *insn)
       break;
    case OP_ADD:
    case OP_SUB:
-      if (isFloatType(insn->dType))
+      if (insn->dType == TYPE_F64)
+         emitDADD(insn);
+      else if (isFloatType(insn->dType))
          emitFADD(insn);
       else if (insn->getDef(0)->reg.file == FILE_ADDRESS)
          emitAADD(insn);
@@ -1733,14 +1803,18 @@ CodeEmitterNV50::emitInstruction(Instruction *insn)
          emitUADD(insn);
       break;
    case OP_MUL:
-      if (isFloatType(insn->dType))
+      if (insn->dType == TYPE_F64)
+         emitDMUL(insn);
+      else if (isFloatType(insn->dType))
          emitFMUL(insn);
       else
          emitIMUL(insn);
       break;
    case OP_MAD:
    case OP_FMA:
-      if (isFloatType(insn->dType))
+      if (insn->dType == TYPE_F64)
+         emitDMAD(insn);
+      else if (isFloatType(insn->dType))
          emitFMAD(insn);
       else
          emitIMAD(insn);
@@ -1912,7 +1986,7 @@ CodeEmitterNV50::getMinEncodingSize(const Instruction *i) const
 {
    const Target::OpInfo &info = targ->getOpInfo(i);
 
-   if (info.minEncSize > 4)
+   if (info.minEncSize > 4 || i->dType == TYPE_F64)
       return 8;
 
    // check constraints on dst and src operands

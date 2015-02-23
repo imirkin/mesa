@@ -314,6 +314,7 @@ private:
    void handleDIV(Instruction *);
    void handleMOD(Instruction *);
    void handleMUL(Instruction *);
+   void handleDRCPRSQ(Instruction *);
    void handleAddrDef(Instruction *);
 
    inline bool isARL(const Instruction *) const;
@@ -552,6 +553,95 @@ NV50LegalizeSSA::handleMOD(Instruction *mod)
    mod->setSrc(1, m);
 }
 
+void
+NV50LegalizeSSA::handleDRCPRSQ(Instruction *i)
+{
+   /* We need to replace this instruction with a sequence that computes the
+    * appropriate function. As a first guess, we use the "quake" style
+    * approximation for RSQ:
+    *
+    * 0x5fe6eb50c7b537a9 - num >> 1
+    *
+    * For RCP, we will then square it.
+    */
+   Value *abs, *guess, *parts[2], *input[2], *shr[4], *pred;
+
+   bld.setPosition(i, false);
+
+   abs = bld.mkOp1v(OP_ABS, TYPE_F64, bld.getSSA(8), i->getSrc(0));
+
+   parts[0] = bld.loadImm(NULL, 0xc7b537a9);
+   parts[1] = bld.loadImm(NULL, 0x5fe6eb50);
+   guess = bld.mkOp2v(OP_MERGE, TYPE_F64, bld.getSSA(8), parts[0], parts[1]);
+
+   bld.mkSplit(input, 4, abs);
+   shr[0] = bld.mkOp2v(OP_SHR, TYPE_U32, bld.getSSA(4), input[0], bld.mkImm(1));
+   shr[1] = bld.mkOp2v(OP_SHR, TYPE_U32, bld.getSSA(4), input[1], bld.mkImm(1));
+
+   // If the bottom bit of the high word was set, set the high bit of the
+   // bottom word.
+   pred = bld.getSSA(1, FILE_FLAGS);
+   bld.mkOp2(OP_AND, TYPE_U32, NULL, input[1], bld.loadImm(NULL, 1))
+      ->setFlagsDef(0, pred);
+   shr[2] = bld.getSSA(4); shr[3] = bld.getSSA(4);
+   bld.mkOp2(OP_OR, TYPE_U32, shr[2], shr[0], bld.loadImm(NULL, 0x80000000))
+      ->setPredicate(CC_S, pred);
+   bld.mkMov(shr[3], shr[0])
+      ->setPredicate(CC_NS, pred);
+   shr[0] = bld.mkOp2v(OP_UNION, TYPE_U32, bld.getSSA(4), shr[2], shr[3]);
+
+   guess = bld.mkOp2v(OP_SUB, TYPE_F64, bld.getSSA(8), guess,
+                      bld.mkOp2v(OP_MERGE, TYPE_F64, bld.getSSA(8), shr[0], shr[1]));
+
+   if (i->op == OP_RCP) {
+      Value *two = bld.getSSA(8), *neg = bld.getSSA(8), *copy = bld.getSSA(8);
+
+      bld.mkCvt(OP_CVT, TYPE_F64, two, TYPE_F32, bld.loadImm(NULL, 2.0f));
+
+      /* Square the guess first, since it was for RSQ */
+      guess = bld.mkOp2v(OP_MUL, TYPE_F64, bld.getSSA(8), guess, guess);
+
+      // RCP: x_{n+1} = 2 * x_n - input * x_n^2
+      guess = bld.mkOp2v(OP_SUB, TYPE_F64, bld.getSSA(8),
+                         bld.mkOp2v(OP_MUL, TYPE_F64, bld.getSSA(8), two, guess),
+                         bld.mkOp2v(OP_MUL, TYPE_F64, bld.getSSA(8), abs,
+                                    bld.mkOp2v(OP_MUL, TYPE_F64, bld.getSSA(8), guess, guess)));
+      guess = bld.mkOp2v(OP_SUB, TYPE_F64, bld.getSSA(8),
+                         bld.mkOp2v(OP_MUL, TYPE_F64, bld.getSSA(8), two, guess),
+                         bld.mkOp2v(OP_MUL, TYPE_F64, bld.getSSA(8), abs,
+                                    bld.mkOp2v(OP_MUL, TYPE_F64, bld.getSSA(8), guess, guess)));
+
+      // Restore the sign on the output
+      bld.mkSplit(input, 4, i->getSrc(0));
+      bld.mkOp2(OP_AND, TYPE_U32, NULL, input[1], bld.loadImm(NULL, 0x80000000))
+         ->setFlagsDef(0, (pred = bld.getSSA(1, FILE_FLAGS)));
+      bld.mkOp1(OP_NEG, TYPE_F64, neg, guess)
+         ->setPredicate(CC_S, pred);
+      bld.mkMov(copy, guess)
+         ->setPredicate(CC_NS, pred);
+      guess = bld.mkOp2v(OP_UNION, TYPE_U64, bld.getSSA(8), neg, copy);
+   } else {
+      Value *half_input = bld.getSSA(8), *three_half = bld.getSSA(8);
+      bld.mkCvt(OP_CVT, TYPE_F64, half_input, TYPE_F32, bld.loadImm(NULL, -0.5f));
+      bld.mkCvt(OP_CVT, TYPE_F64, three_half, TYPE_F32, bld.loadImm(NULL, 1.5f));
+
+      half_input = bld.mkOp2v(OP_MUL, TYPE_F64, bld.getSSA(8), half_input, abs);
+      // RSQ: x_{n+1} = x_n * (1.5 - 0.5 * input * x_n^2)
+      guess = bld.mkOp2v(OP_MUL, TYPE_F64, bld.getSSA(8), guess,
+                         bld.mkOp3v(OP_MAD, TYPE_F64, bld.getSSA(8), half_input,
+                                    bld.mkOp2v(OP_MUL, TYPE_F64, bld.getSSA(8), guess, guess),
+                                    three_half));
+      guess = bld.mkOp2v(OP_MUL, TYPE_F64, bld.getSSA(8), guess,
+                         bld.mkOp3v(OP_MAD, TYPE_F64, bld.getSSA(8), half_input,
+                                    bld.mkOp2v(OP_MUL, TYPE_F64, bld.getSSA(8), guess, guess),
+                                    three_half));
+   }
+
+   i->op = OP_MOV;
+   i->setSrc(0, guess);
+}
+
+
 bool
 NV50LegalizeSSA::visit(BasicBlock *bb)
 {
@@ -577,6 +667,11 @@ NV50LegalizeSSA::visit(BasicBlock *bb)
       case OP_MAD:
       case OP_MUL:
          handleMUL(insn);
+         break;
+      case OP_RCP:
+      case OP_RSQ:
+         if (insn->dType == TYPE_F64)
+            handleDRCPRSQ(insn);
          break;
       default:
          break;
@@ -1162,7 +1257,7 @@ NV50LoweringPreSSA::handleDIV(Instruction *i)
 bool
 NV50LoweringPreSSA::handleSQRT(Instruction *i)
 {
-   Instruction *rsq = bld.mkOp1(OP_RSQ, TYPE_F32,
+   Instruction *rsq = bld.mkOp1(OP_RSQ, i->dType,
                                 bld.getSSA(), i->getSrc(0));
    i->op = OP_MUL;
    i->setSrc(1, rsq->getDef(0));

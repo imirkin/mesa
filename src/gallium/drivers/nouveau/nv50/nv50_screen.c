@@ -237,6 +237,8 @@ static int
 nv50_screen_get_shader_param(struct pipe_screen *pscreen, unsigned shader,
                              enum pipe_shader_cap param)
 {
+   struct nouveau_device *dev = nouveau_screen(pscreen)->device;
+
    switch (shader) {
    case PIPE_SHADER_VERTEX:
    case PIPE_SHADER_GEOMETRY:
@@ -287,7 +289,9 @@ nv50_screen_get_shader_param(struct pipe_screen *pscreen, unsigned shader,
    case PIPE_SHADER_CAP_MAX_SAMPLER_VIEWS:
       return MIN2(32, PIPE_MAX_SAMPLERS);
    case PIPE_SHADER_CAP_DOUBLES:
+      return dev->chipset == 0xa0;
    case PIPE_SHADER_CAP_TGSI_DROUND_SUPPORTED:
+      return dev->chipset == 0xa0;
    case PIPE_SHADER_CAP_TGSI_DFRACEXP_DLDEXP_SUPPORTED:
       return 0;
    default:
