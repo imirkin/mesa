@@ -1003,6 +1003,9 @@ _mesa_is_color_format(GLenum format)
       case GL_COMPRESSED_SRGB_ALPHA_BPTC_UNORM:
       case GL_COMPRESSED_RGB_BPTC_SIGNED_FLOAT:
       case GL_COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT:
+      case GL_ATC_RGB_AMD:
+      case GL_ATC_RGBA_EXPLICIT_ALPHA_AMD:
+      case GL_ATC_RGBA_INTERPOLATED_ALPHA_AMD:
       /* generic integer formats */
       case GL_RED_INTEGER_EXT:
       case GL_GREEN_INTEGER_EXT:
@@ -1262,6 +1265,11 @@ _mesa_is_compressed_format(struct gl_context *ctx, GLenum format)
    case GL_COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT:
       return _mesa_is_desktop_gl(ctx) &&
          ctx->Extensions.ARB_texture_compression_bptc;
+   case GL_ATC_RGB_AMD:
+   case GL_ATC_RGBA_EXPLICIT_ALPHA_AMD:
+   case GL_ATC_RGBA_INTERPOLATED_ALPHA_AMD:
+      return _mesa_is_gles(ctx)
+         && ctx->Extensions.AMD_compressed_ATC_texture;
    case GL_PALETTE4_RGB8_OES:
    case GL_PALETTE4_RGBA8_OES:
    case GL_PALETTE4_R5_G6_B5_OES:

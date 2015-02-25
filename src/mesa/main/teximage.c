@@ -565,6 +565,18 @@ _mesa_base_tex_format( struct gl_context *ctx, GLint internalFormat )
       }
    }
 
+   if (_mesa_is_gles(ctx) && ctx->Extensions.AMD_compressed_ATC_texture) {
+      switch (internalFormat) {
+      case GL_ATC_RGB_AMD:
+         return GL_RGB;
+      case GL_ATC_RGBA_EXPLICIT_ALPHA_AMD:
+      case GL_ATC_RGBA_INTERPOLATED_ALPHA_AMD:
+         return GL_RGBA;
+      default:
+         ; /* fallthrough */
+      }
+   }
+
    if (_mesa_is_gles3(ctx) || ctx->Extensions.ARB_ES3_compatibility) {
       switch (internalFormat) {
       case GL_COMPRESSED_RGB8_ETC2:
@@ -1778,6 +1790,9 @@ compressedteximage_only_format(const struct gl_context *ctx, GLenum format)
    case GL_PALETTE8_R5_G6_B5_OES:
    case GL_PALETTE8_RGBA4_OES:
    case GL_PALETTE8_RGB5_A1_OES:
+   case GL_ATC_RGB_AMD:
+   case GL_ATC_RGBA_EXPLICIT_ALPHA_AMD:
+   case GL_ATC_RGBA_INTERPOLATED_ALPHA_AMD:
       return GL_TRUE;
    default:
       return GL_FALSE;

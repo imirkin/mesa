@@ -30,6 +30,7 @@
  */
 
 
+#include "glformats.h"
 #include "glheader.h"
 #include "imports.h"
 #include "context.h"
@@ -42,7 +43,6 @@
 #include "texcompress_s3tc.h"
 #include "texcompress_etc.h"
 #include "texcompress_bptc.h"
-
 
 /**
  * Get the GL base format of a specified GL compressed texture format
@@ -100,6 +100,7 @@ _mesa_gl_compressed_format_base_format(GLenum format)
    case GL_ETC1_RGB8_OES:
    case GL_COMPRESSED_RGB8_ETC2:
    case GL_COMPRESSED_SRGB8_ETC2:
+   case GL_ATC_RGB_AMD:
       return GL_RGB;
 
    case GL_COMPRESSED_RGBA:
@@ -117,6 +118,8 @@ _mesa_gl_compressed_format_base_format(GLenum format)
    case GL_COMPRESSED_SRGB8_ALPHA8_ETC2_EAC:
    case GL_COMPRESSED_RGB8_PUNCHTHROUGH_ALPHA1_ETC2:
    case GL_COMPRESSED_SRGB8_PUNCHTHROUGH_ALPHA1_ETC2:
+   case GL_ATC_RGBA_EXPLICIT_ALPHA_AMD:
+   case GL_ATC_RGBA_INTERPOLATED_ALPHA_AMD:
       return GL_RGBA;
 
    case GL_COMPRESSED_ALPHA:
@@ -325,6 +328,26 @@ _mesa_get_compressed_formats(struct gl_context *ctx, GLint *formats)
       }
    }
 
+   /* The GL_AMD_compressed_ATC_texture spec says:
+    *
+    *     "New State
+    *
+    *         The queries for NUM_COMPRESSED_TEXTURE_FORMATS and
+    *         COMPRESSED_TEXTURE_FORMATS include ATC_RGB_AMD,
+    *         ATC_RGBA_EXPLICIT_ALPHA_AMD, and ATC_RGBA_INTERPOLATED_ALPHA_AMD."
+    */
+   if (_mesa_is_gles(ctx)
+       && ctx->Extensions.AMD_compressed_ATC_texture) {
+      if (formats) {
+         formats[n++] = GL_ATC_RGB_AMD;
+         formats[n++] = GL_ATC_RGBA_EXPLICIT_ALPHA_AMD;
+         formats[n++] = GL_ATC_RGBA_INTERPOLATED_ALPHA_AMD;
+      }
+      else {
+         n += 3;
+      }
+   }
+
    if (ctx->API == API_OPENGLES) {
       if (formats) {
 	 formats[n++] = GL_PALETTE4_RGB8_OES;
@@ -449,6 +472,13 @@ _mesa_glenum_to_compressed_format(GLenum format)
    case GL_COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT:
       return MESA_FORMAT_BPTC_RGB_UNSIGNED_FLOAT;
 
+   case GL_ATC_RGB_AMD:
+      return MESA_FORMAT_ATC_RGB;
+   case GL_ATC_RGBA_EXPLICIT_ALPHA_AMD:
+      return MESA_FORMAT_ATC_RGBA_EXPLICIT;
+   case GL_ATC_RGBA_INTERPOLATED_ALPHA_AMD:
+      return MESA_FORMAT_ATC_RGBA_INTERPOLATED;
+
    default:
       return MESA_FORMAT_NONE;
    }
@@ -538,6 +568,13 @@ _mesa_compressed_format_to_glenum(struct gl_context *ctx, mesa_format mesaFormat
       return GL_COMPRESSED_RGB_BPTC_SIGNED_FLOAT;
    case MESA_FORMAT_BPTC_RGB_UNSIGNED_FLOAT:
       return GL_COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT;
+
+   case MESA_FORMAT_ATC_RGB:
+      return GL_ATC_RGB_AMD;
+   case MESA_FORMAT_ATC_RGBA_EXPLICIT:
+      return GL_ATC_RGBA_EXPLICIT_ALPHA_AMD;
+   case MESA_FORMAT_ATC_RGBA_INTERPOLATED:
+      return GL_ATC_RGBA_INTERPOLATED_ALPHA_AMD;
 
    default:
       _mesa_problem(ctx, "Unexpected mesa texture format in"

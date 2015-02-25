@@ -130,6 +130,8 @@ def get_channel_bits(fmat, chan_name):
       elif fmat.layout == 'bptc':
          bits = 16 if fmat.name.endswith('_FLOAT') else 8
          return bits if fmat.has_channel(chan_name) else 0
+      elif fmat.layout == 'atc':
+         return 8 if fmat.has_channel(chan_name) else 0
       else:
          assert False
    else:

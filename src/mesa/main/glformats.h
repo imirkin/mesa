@@ -30,10 +30,15 @@
 
 #include <GL/gl.h>
 
+#define GL_ATC_RGB_AMD                     0x8C92
+#define GL_ATC_RGBA_EXPLICIT_ALPHA_AMD     0x8C93
+#define GL_ATC_RGBA_INTERPOLATED_ALPHA_AMD 0x87EE
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+struct gl_context;
 
 extern void
 _mesa_compute_component_mapping(GLenum inFormat, GLenum outFormat, GLubyte *map);

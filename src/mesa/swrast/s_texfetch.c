@@ -551,7 +551,11 @@ texfetch_funcs[] =
       fetch_compressed,
       fetch_compressed,
       fetch_compressed
-   }
+   },
+
+   FETCH_NULL(ATC_RGB),
+   FETCH_NULL(ATC_RGBA_EXPLICIT),
+   FETCH_NULL(ATC_RGBA_INTERPOLATED),
 };
 
 
