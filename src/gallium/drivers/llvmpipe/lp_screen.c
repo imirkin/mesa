@@ -449,7 +449,8 @@ llvmpipe_is_format_supported( struct pipe_screen *_screen,
       }
    }
 
-   if (format_desc->layout == UTIL_FORMAT_LAYOUT_BPTC) {
+   if (format_desc->layout == UTIL_FORMAT_LAYOUT_BPTC ||
+       format_desc->layout == UTIL_FORMAT_LAYOUT_ATC) {
       /* Software decoding is not hooked up. */
       return FALSE;
    }
