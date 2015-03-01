@@ -35,3 +35,7 @@ fake(etc2_r11_unorm)
 fake(etc2_r11_snorm)
 fake(etc2_rg11_unorm)
 fake(etc2_rg11_snorm)
+
+fake(atc_rgb)
+fake(atc_rgba_explicit)
+fake(atc_rgba_interpolated)

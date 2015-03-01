@@ -63,4 +63,8 @@ __format_fake(etc2_r11_snorm)
 __format_fake(etc2_rg11_unorm)
 __format_fake(etc2_rg11_snorm)
 
+__format_fake(atc_rgb)
+__format_fake(atc_rgba_explicit)
+__format_fake(atc_rgba_interpolated)
+
 #endif
