@@ -463,6 +463,13 @@ st_mesa_format_to_pipe_format(struct st_context *st, mesa_format mesaFormat)
    case MESA_FORMAT_ETC2_SRGB8_PUNCHTHROUGH_ALPHA1:
       return st->has_etc2 ? PIPE_FORMAT_ETC2_SRGB8A1 : PIPE_FORMAT_B8G8R8A8_SRGB;
 
+   case MESA_FORMAT_ATC_RGB:
+      return PIPE_FORMAT_ATC_RGB;
+   case MESA_FORMAT_ATC_RGBA_EXPLICIT:
+      return PIPE_FORMAT_ATC_RGBA_EXPLICIT;
+   case MESA_FORMAT_ATC_RGBA_INTERPOLATED:
+      return PIPE_FORMAT_ATC_RGBA_INTERPOLATED;
+
    default:
       return PIPE_FORMAT_NONE;
    }
@@ -880,6 +887,13 @@ st_pipe_format_to_mesa_format(enum pipe_format format)
       return MESA_FORMAT_ETC2_RG11_EAC;
    case PIPE_FORMAT_ETC2_RG11_SNORM:
       return MESA_FORMAT_ETC2_SIGNED_RG11_EAC;
+
+   case PIPE_FORMAT_ATC_RGB:
+      return MESA_FORMAT_ATC_RGB;
+   case PIPE_FORMAT_ATC_RGBA_EXPLICIT:
+      return MESA_FORMAT_ATC_RGBA_EXPLICIT;
+   case PIPE_FORMAT_ATC_RGBA_INTERPOLATED:
+      return MESA_FORMAT_ATC_RGBA_INTERPOLATED;
 
    default:
       return MESA_FORMAT_NONE;
