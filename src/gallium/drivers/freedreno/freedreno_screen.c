@@ -252,7 +252,7 @@ fd_screen_get_param(struct pipe_screen *pscreen, enum pipe_cap param)
 		return (is_a3xx(screen) || is_a4xx(screen)) ? 256 : 0;
 
 	case PIPE_CAP_MAX_TEXTURE_GATHER_COMPONENTS:
-		return is_a4xx(screen) ? 4 : 0;
+		return is_a3xx(screen) ? 4 : 0;
 
 	/* Render targets. */
 	case PIPE_CAP_MAX_RENDER_TARGETS:

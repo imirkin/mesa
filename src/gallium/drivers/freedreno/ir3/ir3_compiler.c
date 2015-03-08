@@ -1633,6 +1633,63 @@ trans_samp(const struct instr_translater *t,
 		coord = tmp_src;
 	}
 
+	/* texture gather wants integer coordinates */
+	if (inst->Instruction.Opcode == TGSI_OPCODE_TG4) {
+		struct tgsi_dst_register tmp_dst;
+		struct tgsi_src_register *tmp_src;
+
+		tmp_src = get_internal_temp(ctx, &tmp_dst);
+		/* scale up by the texture size */
+		if (inst->Texture.Texture != TGSI_TEXTURE_RECT &&
+			inst->Texture.Texture != TGSI_TEXTURE_SHADOWRECT) {
+			int writemask = (1 << tgt->dims) - 1;
+			if (tgt->array)
+				writemask |= TGSI_WRITEMASK_W;
+
+			instr = instr_create(ctx, 5, OPC_GETSIZE);
+			instr->cat5.type = get_utype(ctx);
+			instr->cat5.samp = samp->Index;
+			instr->cat5.tex = samp->Index;
+			instr->flags |= tinf.flags;
+			add_dst_reg_wrmask(ctx, instr, &tmp_dst, 0, writemask);
+			add_src_reg(ctx, instr, get_unconst(ctx, &zero), 0);
+
+			/* now convert the relevant parts to float */
+			instr = instr_create(ctx, 1, 0);
+			instr->cat1.src_type = get_utype(ctx);
+			instr->cat1.dst_type = get_ftype(ctx);
+			vectorize(ctx, instr, &tmp_dst, 1, tmp_src, 0);
+
+			/* add 1 to the array and move it to the proper place */
+			if (tgt->array) {
+				instr = instr_create(ctx, 2, OPC_ADD_F);
+				add_dst_reg(ctx, instr, &tmp_dst, tgt->dims);
+				add_src_reg(ctx, instr, tmp_src, 3);
+				ir3_reg_create(instr, 0, IR3_REG_IMMED)->fim_val = 1.0;
+			}
+
+			/* multiply the coord by the texture size */
+			instr = instr_create(ctx, 2, OPC_MUL_F);
+			vectorize(ctx, instr, &tmp_dst, 2, tmp_src, 0, coord, 0);
+
+			/* and now convert back to integer */
+			instr = instr_create(ctx, 1, 0);
+			instr->cat1.src_type = get_ftype(ctx);
+			instr->cat1.dst_type = get_utype(ctx);
+			vectorize(ctx, instr, &tmp_dst, 1, tmp_src, 0);
+		} else {
+			/* for rect textures, we can directly convert the coordinate to
+			 * integer.
+			 */
+			instr = instr_create(ctx, 1, 0);
+			instr->cat1.src_type = get_ftype(ctx);
+			instr->cat1.dst_type = get_utype(ctx);
+			vectorize(ctx, instr, &tmp_dst, 1, coord, 0);
+		}
+
+		coord = tmp_src;
+	}
+
 	if (inst->Texture.NumOffsets) {
 		struct tgsi_texture_offset *tex_offset = &inst->TexOffsets[0];
 		struct tgsi_src_register offset_src = {0};
