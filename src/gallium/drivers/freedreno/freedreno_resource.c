@@ -613,10 +613,34 @@ fd_blit(struct pipe_context *pctx, const struct pipe_blit_info *blit_info)
 
 	if (info.src.resource->nr_samples > 1 &&
 			info.dst.resource->nr_samples <= 1 &&
-			!util_format_is_depth_or_stencil(info.src.resource->format) &&
-			!util_format_is_pure_integer(info.src.resource->format)) {
+			!util_format_is_depth_or_stencil(info.src.format) &&
+			!util_format_is_pure_integer(info.src.format)) {
 		DBG("color resolve unimplemented");
 		return;
+	}
+
+	if (util_format_is_depth_or_stencil(info.src.format)) {
+		assert(util_format_is_depth_or_stencil(info.dst.format));
+
+		/* switch Z24S8 to RGBA8 */
+		if (info.dst.format != PIPE_FORMAT_Z16_UNORM &&
+			info.src.format != PIPE_FORMAT_Z16_UNORM) {
+			unsigned mask = 0;
+
+			if (info.mask & PIPE_MASK_Z)
+				mask |= PIPE_MASK_R | PIPE_MASK_G | PIPE_MASK_B;
+			if (info.mask & PIPE_MASK_S)
+				mask |= PIPE_MASK_A;
+
+			info.mask = mask;
+			info.src.format = info.dst.format = PIPE_FORMAT_R8G8B8A8_UNORM;
+		}
+
+		if (info.src.format == PIPE_FORMAT_Z16_UNORM &&
+			info.dst.format == PIPE_FORMAT_Z16_UNORM) {
+			info.mask = PIPE_MASK_R | PIPE_MASK_G;
+			info.src.format = info.dst.format = PIPE_FORMAT_R8G8_UNORM;
+		}
 	}
 
 	if (util_try_blit_via_copy_region(pctx, &info)) {
@@ -630,8 +654,8 @@ fd_blit(struct pipe_context *pctx, const struct pipe_blit_info *blit_info)
 
 	if (!util_blitter_is_blit_supported(ctx->blitter, &info)) {
 		DBG("blit unsupported %s -> %s",
-				util_format_short_name(info.src.resource->format),
-				util_format_short_name(info.dst.resource->format));
+				util_format_short_name(info.src.format),
+				util_format_short_name(info.dst.format));
 		return;
 	}
 
