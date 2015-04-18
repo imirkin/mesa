@@ -1496,10 +1496,32 @@ SpillCodeInserter::spill(Instruction *defi, Value *slot, LValue *lval)
 
    Instruction *st;
    if (slot->reg.file == FILE_MEMORY_LOCAL) {
-      st = new_Instruction(func, OP_STORE, ty);
-      st->setSrc(0, slot);
-      st->setSrc(1, lval);
+      bool split = !func->getProgram()->getTarget()->isAccessSupported(
+                slot->reg.file, ty);
       lval->noSpill = 1;
+      if (split) {
+         Instruction *split = new_Instruction(func, OP_SPLIT, ty);
+         split->setSrc(0, lval);
+         for (int d = 0; d < lval->reg.size / 4; ++d) {
+            split->setDef(d, new_LValue(func, FILE_GPR));
+         }
+         defi->bb->insertAfter(defi, split);
+         for (int d = 0; d < lval->reg.size / 4; ++d) {
+            Value *tmp = cloneShallow(func, slot);
+            tmp->reg.size = 4;
+            tmp->reg.data.offset += 4 * d;
+
+            st = new_Instruction(func, OP_STORE, TYPE_U32);
+            st->setSrc(0, tmp);
+            st->setSrc(1, split->getDef(d));
+            split->bb->insertAfter(split, st);
+         }
+         return;
+      } else {
+         st = new_Instruction(func, OP_STORE, ty);
+         st->setSrc(0, slot);
+         st->setSrc(1, lval);
+      }
    } else {
       st = new_Instruction(func, OP_CVT, ty);
       st->setDef(0, slot);
