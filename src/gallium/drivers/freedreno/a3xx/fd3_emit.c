@@ -536,10 +536,10 @@ fd3_emit_state(struct fd_context *ctx, struct fd_ringbuffer *ring,
 
 	emit_marker(ring, 5);
 
-	if (dirty & FD_DIRTY_SAMPLE_MASK) {
+	if (dirty & (FD_DIRTY_SAMPLE_MASK | FD_DIRTY_FRAMEBUFFER)) {
 		OUT_PKT0(ring, REG_A3XX_RB_MSAA_CONTROL, 1);
-		OUT_RING(ring, A3XX_RB_MSAA_CONTROL_DISABLE |
-				A3XX_RB_MSAA_CONTROL_SAMPLES(MSAA_ONE) |
+		OUT_RING(ring, COND(ctx->samples < 2, A3XX_RB_MSAA_CONTROL_DISABLE) |
+				A3XX_RB_MSAA_CONTROL_SAMPLES(msaa_samples(ctx->samples)) |
 				A3XX_RB_MSAA_CONTROL_SAMPLE_MASK(ctx->sample_mask));
 	}
 

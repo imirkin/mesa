@@ -117,6 +117,7 @@ fd_set_framebuffer_state(struct pipe_context *pctx,
 {
 	struct fd_context *ctx = fd_context(pctx);
 	struct pipe_framebuffer_state *cso = &ctx->framebuffer;
+	int i;
 
 	DBG("%d: cbufs[0]=%p, zsbuf=%p", ctx->needs_flush,
 			framebuffer->cbufs[0], framebuffer->zsbuf);
@@ -128,6 +129,13 @@ fd_set_framebuffer_state(struct pipe_context *pctx,
 		ctx->needs_rb_fbd = true;
 
 	util_copy_framebuffer_state(cso, framebuffer);
+
+	/* All of the attachments are supposed to have the same MSAA-ness */
+	for (i = 0; i < cso->nr_cbufs; i++)
+		if (cso->cbufs[i])
+			ctx->samples = cso->cbufs[i]->texture->nr_samples;
+	if (cso->zsbuf)
+		ctx->samples = cso->zsbuf->texture->nr_samples;
 
 	ctx->dirty |= FD_DIRTY_FRAMEBUFFER;
 

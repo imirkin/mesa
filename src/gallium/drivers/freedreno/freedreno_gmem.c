@@ -116,6 +116,7 @@ calculate_tiles(struct fd_context *ctx)
 	uint8_t cbuf_cpp[4] = {0}, zsbuf_cpp[2] = {0};
 	uint32_t i, j, t, xoff, yoff;
 	uint32_t tpp_x, tpp_y;
+	uint8_t samples = MAX2(1, ctx->samples);
 	bool has_zs = !!(ctx->resolve & (FD_BUFFER_DEPTH | FD_BUFFER_STENCIL));
 	int tile_n[ARRAY_SIZE(ctx->pipe)];
 
@@ -168,7 +169,7 @@ calculate_tiles(struct fd_context *ctx)
 	DBG("binning input: cbuf cpp: %d %d %d %d, zsbuf cpp: %d; %dx%d",
 		cbuf_cpp[0], cbuf_cpp[1], cbuf_cpp[2], cbuf_cpp[3], zsbuf_cpp[0],
 		width, height);
-	while (total_size(cbuf_cpp, zsbuf_cpp, bin_w, bin_h, gmem) > gmem_size) {
+	while (total_size(cbuf_cpp, zsbuf_cpp, bin_w * samples, bin_h, gmem) > gmem_size) {
 		if (bin_w > bin_h) {
 			nbins_x++;
 			bin_w = align(width / nbins_x, 32);

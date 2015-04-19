@@ -296,7 +296,7 @@ emit_binning_workaround(struct fd_context *ctx)
 
 	OUT_PKT0(ring, REG_A3XX_GRAS_SC_CONTROL, 1);
 	OUT_RING(ring, A3XX_GRAS_SC_CONTROL_RENDER_MODE(RB_RENDERING_PASS) |
-			A3XX_GRAS_SC_CONTROL_MSAA_SAMPLES(MSAA_ONE) |
+			A3XX_GRAS_SC_CONTROL_MSAA_SAMPLES(msaa_samples(ctx->samples)) |
 			A3XX_GRAS_SC_CONTROL_RASTER_MODE(0));
 
 	OUT_PKT0(ring, REG_A3XX_GRAS_CL_CLIP_CNTL, 1);
@@ -325,7 +325,7 @@ emit_gmem2mem_surf(struct fd_context *ctx,
 	debug_assert(psurf->u.tex.first_layer == psurf->u.tex.last_layer);
 
 	OUT_PKT0(ring, REG_A3XX_RB_COPY_CONTROL, 4);
-	OUT_RING(ring, A3XX_RB_COPY_CONTROL_MSAA_RESOLVE(MSAA_ONE) |
+	OUT_RING(ring, A3XX_RB_COPY_CONTROL_MSAA_RESOLVE(msaa_samples(psurf->texture->nr_samples)) |
 			A3XX_RB_COPY_CONTROL_MODE(mode) |
 			A3XX_RB_COPY_CONTROL_GMEM_BASE(base) |
 			COND(format == PIPE_FORMAT_Z32_FLOAT ||
@@ -410,7 +410,7 @@ fd3_emit_tile_gmem2mem(struct fd_context *ctx, struct fd_tile *tile)
 
 	OUT_PKT0(ring, REG_A3XX_GRAS_SC_CONTROL, 1);
 	OUT_RING(ring, A3XX_GRAS_SC_CONTROL_RENDER_MODE(RB_RESOLVE_PASS) |
-			A3XX_GRAS_SC_CONTROL_MSAA_SAMPLES(MSAA_ONE) |
+			A3XX_GRAS_SC_CONTROL_MSAA_SAMPLES(msaa_samples(ctx->samples)) |
 			A3XX_GRAS_SC_CONTROL_RASTER_MODE(1));
 
 	OUT_PKT0(ring, REG_A3XX_PC_PRIM_VTX_CNTL, 1);
@@ -462,7 +462,7 @@ fd3_emit_tile_gmem2mem(struct fd_context *ctx, struct fd_tile *tile)
 
 	OUT_PKT0(ring, REG_A3XX_GRAS_SC_CONTROL, 1);
 	OUT_RING(ring, A3XX_GRAS_SC_CONTROL_RENDER_MODE(RB_RENDERING_PASS) |
-			A3XX_GRAS_SC_CONTROL_MSAA_SAMPLES(MSAA_ONE) |
+			A3XX_GRAS_SC_CONTROL_MSAA_SAMPLES(msaa_samples(ctx->samples)) |
 			A3XX_GRAS_SC_CONTROL_RASTER_MODE(0));
 }
 
@@ -629,7 +629,7 @@ fd3_emit_tile_mem2gmem(struct fd_context *ctx, struct fd_tile *tile)
 
 	OUT_PKT0(ring, REG_A3XX_GRAS_SC_CONTROL, 1);
 	OUT_RING(ring, A3XX_GRAS_SC_CONTROL_RENDER_MODE(RB_RENDERING_PASS) |
-			A3XX_GRAS_SC_CONTROL_MSAA_SAMPLES(MSAA_ONE) |
+			A3XX_GRAS_SC_CONTROL_MSAA_SAMPLES(msaa_samples(ctx->samples)) |
 			A3XX_GRAS_SC_CONTROL_RASTER_MODE(1));
 
 	OUT_PKT0(ring, REG_A3XX_PC_PRIM_VTX_CNTL, 1);
@@ -680,7 +680,7 @@ fd3_emit_tile_mem2gmem(struct fd_context *ctx, struct fd_tile *tile)
 
 	OUT_PKT0(ring, REG_A3XX_GRAS_SC_CONTROL, 1);
 	OUT_RING(ring, A3XX_GRAS_SC_CONTROL_RENDER_MODE(RB_RENDERING_PASS) |
-			A3XX_GRAS_SC_CONTROL_MSAA_SAMPLES(MSAA_ONE) |
+			A3XX_GRAS_SC_CONTROL_MSAA_SAMPLES(msaa_samples(ctx->samples)) |
 			A3XX_GRAS_SC_CONTROL_RASTER_MODE(0));
 
 	OUT_PKT0(ring, REG_A3XX_RB_MODE_CONTROL, 1);
@@ -809,7 +809,7 @@ emit_binning_pass(struct fd_context *ctx)
 
 	OUT_PKT0(ring, REG_A3XX_GRAS_SC_CONTROL, 1);
 	OUT_RING(ring, A3XX_GRAS_SC_CONTROL_RENDER_MODE(RB_TILING_PASS) |
-			A3XX_GRAS_SC_CONTROL_MSAA_SAMPLES(MSAA_ONE) |
+			A3XX_GRAS_SC_CONTROL_MSAA_SAMPLES(msaa_samples(ctx->samples)) |
 			A3XX_GRAS_SC_CONTROL_RASTER_MODE(0));
 
 	OUT_PKT0(ring, REG_A3XX_RB_FRAME_BUFFER_DIMENSION, 1);
@@ -873,7 +873,7 @@ emit_binning_pass(struct fd_context *ctx)
 
 	OUT_PKT0(ring, REG_A3XX_GRAS_SC_CONTROL, 1);
 	OUT_RING(ring, A3XX_GRAS_SC_CONTROL_RENDER_MODE(RB_RENDERING_PASS) |
-			A3XX_GRAS_SC_CONTROL_MSAA_SAMPLES(MSAA_ONE) |
+			A3XX_GRAS_SC_CONTROL_MSAA_SAMPLES(msaa_samples(ctx->samples)) |
 			A3XX_GRAS_SC_CONTROL_RASTER_MODE(0));
 
 	OUT_PKT0(ring, REG_A3XX_RB_MODE_CONTROL, 2);
