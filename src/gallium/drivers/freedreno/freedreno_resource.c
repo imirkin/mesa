@@ -619,10 +619,11 @@ fd_blit(struct pipe_context *pctx, const struct pipe_blit_info *blit_info)
 		return;
 	}
 
+/*
 	if (util_format_is_depth_or_stencil(info.src.format)) {
 		assert(util_format_is_depth_or_stencil(info.dst.format));
 
-		/* switch Z24S8 to RGBA8 */
+		/* switch Z24S8 to RGBA8 * /
 		if (info.dst.format != PIPE_FORMAT_Z16_UNORM &&
 			info.src.format != PIPE_FORMAT_Z16_UNORM) {
 			unsigned mask = 0;
@@ -642,6 +643,7 @@ fd_blit(struct pipe_context *pctx, const struct pipe_blit_info *blit_info)
 			info.src.format = info.dst.format = PIPE_FORMAT_R8G8_UNORM;
 		}
 	}
+*/
 
 	if (util_try_blit_via_copy_region(pctx, &info)) {
 		return; /* done */
