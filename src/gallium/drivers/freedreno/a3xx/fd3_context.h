@@ -108,6 +108,9 @@ struct fd3_context {
 	/* bitmask of integer texture samplers */
 	uint16_t vinteger_s, finteger_s;
 
+	/* bitmask of samples per texture */
+	uint32_t vsamples, fsamples;
+
 	/* some state changes require a different shader variant.  Keep
 	 * track of this so we know when we need to re-emit shader state
 	 * due to variant change.  See fixup_shader_state()

@@ -95,7 +95,7 @@ emit_mrt(struct fd_ringbuffer *ring, unsigned nr_bufs,
 					psurf->u.tex.first_layer);
 
 			if (bin_w) {
-				stride = bin_w * rsc->cpp;
+				stride = bin_w * rsc->cpp * MAX2(1, psurf->texture->nr_samples);
 
 				if (bases) {
 					base = bases[i];
@@ -325,7 +325,9 @@ emit_gmem2mem_surf(struct fd_context *ctx,
 	debug_assert(psurf->u.tex.first_layer == psurf->u.tex.last_layer);
 
 	OUT_PKT0(ring, REG_A3XX_RB_COPY_CONTROL, 4);
-	OUT_RING(ring, A3XX_RB_COPY_CONTROL_MSAA_RESOLVE(msaa_samples(psurf->texture->nr_samples)) |
+	OUT_RING(ring,
+			COND(psurf->texture->nr_samples <= 1,
+				 A3XX_RB_COPY_CONTROL_MSAA_RESOLVE(msaa_samples(ctx->samples))) |
 			A3XX_RB_COPY_CONTROL_MODE(mode) |
 			A3XX_RB_COPY_CONTROL_GMEM_BASE(base) |
 			COND(format == PIPE_FORMAT_Z32_FLOAT ||
@@ -464,6 +466,26 @@ fd3_emit_tile_gmem2mem(struct fd_context *ctx, struct fd_tile *tile)
 	OUT_RING(ring, A3XX_GRAS_SC_CONTROL_RENDER_MODE(RB_RENDERING_PASS) |
 			A3XX_GRAS_SC_CONTROL_MSAA_SAMPLES(msaa_samples(ctx->samples)) |
 			A3XX_GRAS_SC_CONTROL_RASTER_MODE(0));
+}
+
+static void
+fd3_resolve_surface(struct fd_context *ctx, const struct pipe_blit_info *info)
+{
+	struct pipe_framebuffer_state *pfb = &ctx->framebuffer;
+	int i;
+
+	for (i = 0; i < pfb->nr_cbufs; i++) {
+		struct pipe_surface surf;
+		if (!pfb->cbufs[i] || info->src.resource != pfb->cbufs[i]->texture)
+			continue;
+		DBG("resolving");
+		surf.format = info->dst.resource->format;
+		surf.texture = info->dst.resource;
+		surf.u.tex.level = info->dst.level;
+		surf.u.tex.first_layer = surf.u.tex.last_layer = 0;
+		emit_gmem2mem_surf(ctx, RB_COPY_RESOLVE, false,
+						   ctx->gmem.cbuf_base[i], &surf);
+	}
 }
 
 /* transfer from system memory to gmem */
@@ -729,6 +751,7 @@ fd3_emit_sysmem_prep(struct fd_context *ctx)
 
 	fd3_emit_restore(ctx);
 
+	/* XXX */
 	OUT_PKT0(ring, REG_A3XX_RB_FRAME_BUFFER_DIMENSION, 1);
 	OUT_RING(ring, A3XX_RB_FRAME_BUFFER_DIMENSION_WIDTH(pfb->width) |
 			A3XX_RB_FRAME_BUFFER_DIMENSION_HEIGHT(pfb->height));
@@ -812,6 +835,7 @@ emit_binning_pass(struct fd_context *ctx)
 			A3XX_GRAS_SC_CONTROL_MSAA_SAMPLES(msaa_samples(ctx->samples)) |
 			A3XX_GRAS_SC_CONTROL_RASTER_MODE(0));
 
+	/* XXX */
 	OUT_PKT0(ring, REG_A3XX_RB_FRAME_BUFFER_DIMENSION, 1);
 	OUT_RING(ring, A3XX_RB_FRAME_BUFFER_DIMENSION_WIDTH(pfb->width) |
 			A3XX_RB_FRAME_BUFFER_DIMENSION_HEIGHT(pfb->height));
@@ -952,13 +976,14 @@ static void
 fd3_emit_tile_prep(struct fd_context *ctx, struct fd_tile *tile)
 {
 	struct fd_ringbuffer *ring = ctx->ring;
+	struct fd_gmem_stateobj *gmem = &ctx->gmem;
 	struct pipe_framebuffer_state *pfb = &ctx->framebuffer;
 
 	if (ctx->needs_rb_fbd) {
 		fd_wfi(ctx, ring);
 		OUT_PKT0(ring, REG_A3XX_RB_FRAME_BUFFER_DIMENSION, 1);
-		OUT_RING(ring, A3XX_RB_FRAME_BUFFER_DIMENSION_WIDTH(pfb->width) |
-				A3XX_RB_FRAME_BUFFER_DIMENSION_HEIGHT(pfb->height));
+		OUT_RING(ring, A3XX_RB_FRAME_BUFFER_DIMENSION_WIDTH(pfb->width << gmem->ms_x) |
+				A3XX_RB_FRAME_BUFFER_DIMENSION_HEIGHT(pfb->height << gmem->ms_y));
 		ctx->needs_rb_fbd = false;
 	}
 
@@ -976,11 +1001,12 @@ fd3_emit_tile_renderprep(struct fd_context *ctx, struct fd_tile *tile)
 	struct fd_ringbuffer *ring = ctx->ring;
 	struct fd_gmem_stateobj *gmem = &ctx->gmem;
 	struct pipe_framebuffer_state *pfb = &ctx->framebuffer;
+	uint32_t ms = gmem->ms_x + gmem->ms_y;
 
-	uint32_t x1 = tile->xoff;
-	uint32_t y1 = tile->yoff;
-	uint32_t x2 = tile->xoff + tile->bin_w - 1;
-	uint32_t y2 = tile->yoff + tile->bin_h - 1;
+	uint32_t x1 = tile->xoff << ms;
+	uint32_t y1 = tile->yoff << ms;
+	uint32_t x2 = ((tile->xoff + tile->bin_w) << ms) - 1;
+	uint32_t y2 = ((tile->yoff + tile->bin_h) << ms) - 1;
 
 	uint32_t reg;
 
@@ -992,11 +1018,11 @@ fd3_emit_tile_renderprep(struct fd_context *ctx, struct fd_tile *tile)
 	OUT_RING(ring, reg);
 	if (pfb->zsbuf) {
 		struct fd_resource *rsc = fd_resource(pfb->zsbuf->texture);
-		OUT_RING(ring, A3XX_RB_DEPTH_PITCH(rsc->cpp * gmem->bin_w));
+		OUT_RING(ring, A3XX_RB_DEPTH_PITCH(rsc->cpp * ctx->samples * gmem->bin_w));
 		if (rsc->stencil) {
 			OUT_PKT0(ring, REG_A3XX_RB_STENCIL_INFO, 2);
 			OUT_RING(ring, A3XX_RB_STENCIL_INFO_STENCIL_BASE(gmem->zsbuf_base[1]));
-			OUT_RING(ring, A3XX_RB_STENCIL_PITCH(rsc->stencil->cpp * gmem->bin_w));
+			OUT_RING(ring, A3XX_RB_STENCIL_PITCH(rsc->stencil->cpp * ctx->samples * gmem->bin_w));
 		}
 	} else {
 		OUT_RING(ring, 0x00000000);
@@ -1033,8 +1059,8 @@ fd3_emit_tile_renderprep(struct fd_context *ctx, struct fd_tile *tile)
 
 	/* setup scissor/offset for current tile: */
 	OUT_PKT0(ring, REG_A3XX_RB_WINDOW_OFFSET, 1);
-	OUT_RING(ring, A3XX_RB_WINDOW_OFFSET_X(tile->xoff) |
-			A3XX_RB_WINDOW_OFFSET_Y(tile->yoff));
+	OUT_RING(ring, A3XX_RB_WINDOW_OFFSET_X(tile->xoff << gmem->ms_x) |
+			A3XX_RB_WINDOW_OFFSET_Y(tile->yoff << gmem->ms_y));
 
 	OUT_PKT0(ring, REG_A3XX_GRAS_SC_SCREEN_SCISSOR_TL, 2);
 	OUT_RING(ring, A3XX_GRAS_SC_SCREEN_SCISSOR_TL_X(x1) |
@@ -1054,4 +1080,5 @@ fd3_gmem_init(struct pipe_context *pctx)
 	ctx->emit_tile_mem2gmem = fd3_emit_tile_mem2gmem;
 	ctx->emit_tile_renderprep = fd3_emit_tile_renderprep;
 	ctx->emit_tile_gmem2mem = fd3_emit_tile_gmem2mem;
+	ctx->resolve_surface = fd3_resolve_surface;
 }

@@ -55,6 +55,7 @@ struct fd_gmem_stateobj {
 	uint16_t bin_w, nbins_x;
 	uint16_t minx, miny;
 	uint16_t width, height;
+	uint8_t ms_x, ms_y;
 };
 
 struct fd_context;

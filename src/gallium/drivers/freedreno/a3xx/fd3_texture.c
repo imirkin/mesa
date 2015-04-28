@@ -235,7 +235,7 @@ fd3_sampler_view_create(struct pipe_context *pctx, struct pipe_resource *prsc,
 
 	so->texconst1 =
 			A3XX_TEX_CONST_1_FETCHSIZE(fd3_pipe2fetchsize(cso->format)) |
-			A3XX_TEX_CONST_1_WIDTH(u_minify(prsc->width0, lvl)) |
+			A3XX_TEX_CONST_1_WIDTH(u_minify(prsc->width0 * MAX2(1, prsc->nr_samples), lvl)) |
 			A3XX_TEX_CONST_1_HEIGHT(u_minify(prsc->height0, lvl));
 	/* when emitted, A3XX_TEX_CONST_2_INDX() must be OR'd in: */
 	so->texconst2 =
@@ -272,6 +272,7 @@ fd3_set_sampler_views(struct pipe_context *pctx, unsigned shader,
 	struct fd3_context *fd3_ctx = fd3_context(ctx);
 	struct fd_texture_stateobj *tex;
 	uint16_t integer_s = 0, *ptr;
+	uint32_t samplemask = 0, *samples;
 	int i;
 
 	fd_set_sampler_views(pctx, shader, start, nr, views);
@@ -280,19 +281,26 @@ fd3_set_sampler_views(struct pipe_context *pctx, unsigned shader,
 	case PIPE_SHADER_FRAGMENT:
 		tex = &ctx->fragtex;
 		ptr = &fd3_ctx->finteger_s;
+		samples = &fd3_ctx->fsamples;
 		break;
 	case PIPE_SHADER_VERTEX:
 		tex = &ctx->verttex;
 		ptr = &fd3_ctx->vinteger_s;
+		samples = &fd3_ctx->vsamples;
 		break;
 	default:
 		return;
 	}
 
-	for (i = 0; i < tex->num_textures; i++)
+	for (i = 0; i < tex->num_textures; i++) {
 		if (util_format_is_pure_integer(tex->textures[i]->format))
 			integer_s |= 1 << i;
+		if (tex->textures[i]->texture->nr_samples)
+			samplemask |=
+				__builtin_ctz(tex->textures[i]->texture->nr_samples) << (i * 2);
+	}
 	*ptr = integer_s;
+	*samples = samplemask;
 }
 
 

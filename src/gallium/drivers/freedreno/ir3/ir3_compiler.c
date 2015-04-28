@@ -54,6 +54,7 @@ struct ir3_compile_context {
 	struct ir3 *ir;
 	struct ir3_shader_variant *so;
 	uint16_t integer_s;
+	uint32_t samples;
 
 	struct ir3_block *block;
 	struct ir3_instruction *current_instr;
@@ -194,12 +195,14 @@ compile_init(struct ir3_compile_context *ctx, struct ir3_shader_variant *so,
 		lconfig.saturate_t = so->key.fsaturate_t;
 		lconfig.saturate_r = so->key.fsaturate_r;
 		ctx->integer_s = so->key.finteger_s;
+		ctx->samples = so->key.fsamples;
 		break;
 	case SHADER_VERTEX:
 		lconfig.saturate_s = so->key.vsaturate_s;
 		lconfig.saturate_t = so->key.vsaturate_t;
 		lconfig.saturate_r = so->key.vsaturate_r;
 		ctx->integer_s = so->key.vinteger_s;
+		ctx->samples = so->key.vsamples;
 		break;
 	}
 
@@ -1610,10 +1613,36 @@ trans_samp(const struct instr_translater *t,
 
 		tmp_src = get_internal_temp(ctx, &tmp_dst);
 		for (i = 0; i < tgt->dims; i++) {
-			instr = instr_create(ctx, 2, OPC_SHL_B);
-			add_dst_reg(ctx, instr, &tmp_dst, i);
-			add_src_reg(ctx, instr, coord, src_swiz(coord, i));
-			add_src_reg(ctx, instr, orig, orig->SwizzleW);
+			if (inst->Texture.Texture == TGSI_TEXTURE_2D_MSAA ||
+				inst->Texture.Texture == TGSI_TEXTURE_2D_ARRAY_MSAA) {
+				if (i == 0) {
+					struct tgsi_src_register shift;
+					get_immediate(ctx, &shift,
+								  (ctx->samples >> (samp->Index * 2)) & 3);
+					debug_printf("sample shift: %d\n", (ctx->samples >> (samp->Index * 2)) & 3);
+
+					instr = instr_create(ctx, 2, OPC_SHL_B);
+					add_dst_reg(ctx, instr, &tmp_dst, i);
+					add_src_reg(ctx, instr, coord, src_swiz(coord, i));
+					add_src_reg(ctx, instr, &shift, shift.SwizzleX);
+
+					instr = instr_create(ctx, 2, OPC_ADD_U);
+					add_dst_reg(ctx, instr, &tmp_dst, i);
+					add_src_reg(ctx, instr, tmp_src, i);
+					add_src_reg(ctx, instr, orig, orig->SwizzleW);
+				} else {
+					instr = instr_create(ctx, 1, 0);
+					instr->cat1.src_type = type_mov;
+					instr->cat1.dst_type = type_mov;
+					add_dst_reg(ctx, instr, &tmp_dst, i);
+					add_src_reg(ctx, instr, coord, src_swiz(coord, i));
+				}
+			} else {
+				instr = instr_create(ctx, 2, OPC_SHL_B);
+				add_dst_reg(ctx, instr, &tmp_dst, i);
+				add_src_reg(ctx, instr, coord, src_swiz(coord, i));
+				add_src_reg(ctx, instr, orig, orig->SwizzleW);
+			}
 		}
 		if (tgt->dims < 2) {
 			instr = instr_create(ctx, 1, 0);
@@ -1784,6 +1813,9 @@ trans_samp(const struct instr_translater *t,
 	if (inst->Instruction.Opcode == TGSI_OPCODE_TXB2)
 		ssa_src(ctx, ir3_reg_create(collect, 0, IR3_REG_SSA),
 				orig, orig->SwizzleX);
+	else if (inst->Texture.Texture == TGSI_TEXTURE_2D_MSAA ||
+			 inst->Texture.Texture == TGSI_TEXTURE_2D_ARRAY_MSAA)
+		ssa_src(ctx, ir3_reg_create(collect, 0, IR3_REG_SSA), &zero, zero.SwizzleX);
 	else if (tinf.args > 1)
 		ssa_src(ctx, ir3_reg_create(collect, 0, IR3_REG_SSA),
 				orig, orig->SwizzleW);

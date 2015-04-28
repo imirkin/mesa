@@ -241,6 +241,8 @@ ir3_shader_variant(struct ir3_shader *shader, struct ir3_shader_key key)
 			key.vsaturate_s = 0;
 			key.vsaturate_t = 0;
 			key.vsaturate_r = 0;
+			key.vinteger_s = 0;
+			key.vsamples = 0;
 		}
 		break;
 	case SHADER_VERTEX:
@@ -251,6 +253,8 @@ ir3_shader_variant(struct ir3_shader *shader, struct ir3_shader_key key)
 			key.fsaturate_s = 0;
 			key.fsaturate_t = 0;
 			key.fsaturate_r = 0;
+			key.finteger_s = 0;
+			key.fsamples = 0;
 		}
 		break;
 	}

@@ -107,13 +107,15 @@ fixup_shader_state(struct fd_context *ctx, struct ir3_shader_key *key)
 			if ((last_key->vsaturate_s != key->vsaturate_s) ||
 					(last_key->vsaturate_t != key->vsaturate_t) ||
 					(last_key->vsaturate_r != key->vsaturate_r) ||
-					(last_key->vinteger_s != key->vinteger_s))
+					(last_key->vinteger_s != key->vinteger_s) ||
+					(last_key->vsamples != key->vsamples))
 				ctx->prog.dirty |= FD_SHADER_DIRTY_VP;
 
 			if ((last_key->fsaturate_s != key->fsaturate_s) ||
 					(last_key->fsaturate_t != key->fsaturate_t) ||
 					(last_key->fsaturate_r != key->fsaturate_r) ||
-					(last_key->finteger_s != key->finteger_s))
+					(last_key->finteger_s != key->finteger_s) ||
+					(last_key->fsamples != key->fsamples))
 				ctx->prog.dirty |= FD_SHADER_DIRTY_FP;
 		}
 
@@ -143,7 +145,8 @@ fd3_draw_vbo(struct fd_context *ctx, const struct pipe_draw_info *info)
 			// ie. float16 and smaller use half, float32 use full..
 			.half_precision = !!(fd_mesa_debug & FD_DBG_FRAGHALF),
 			.has_per_samp = (fd3_ctx->fsaturate || fd3_ctx->vsaturate ||
-							 fd3_ctx->vinteger_s || fd3_ctx->finteger_s),
+							 fd3_ctx->finteger_s || fd3_ctx->vinteger_s ||
+							 fd3_ctx->fsamples || fd3_ctx->vsamples),
 			.vsaturate_s = fd3_ctx->vsaturate_s,
 			.vsaturate_t = fd3_ctx->vsaturate_t,
 			.vsaturate_r = fd3_ctx->vsaturate_r,
@@ -152,6 +155,8 @@ fd3_draw_vbo(struct fd_context *ctx, const struct pipe_draw_info *info)
 			.fsaturate_r = fd3_ctx->fsaturate_r,
 			.vinteger_s = fd3_ctx->vinteger_s,
 			.finteger_s = fd3_ctx->finteger_s,
+			.vsamples = fd3_ctx->vsamples,
+			.fsamples = fd3_ctx->fsamples,
 		},
 		.rasterflat = ctx->rasterizer && ctx->rasterizer->flatshade,
 		.sprite_coord_enable = ctx->rasterizer ? ctx->rasterizer->sprite_coord_enable : 0,

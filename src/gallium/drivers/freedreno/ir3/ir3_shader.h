@@ -90,6 +90,9 @@ struct ir3_shader_key {
 	/* bitmask of sampler which produces integer outputs:
 	 */
 	uint16_t vinteger_s, finteger_s;
+
+	/* bitmask per texture of ms shifts */
+	uint32_t vsamples, fsamples;
 };
 
 static inline bool

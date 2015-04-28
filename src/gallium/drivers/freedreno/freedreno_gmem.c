@@ -193,6 +193,11 @@ calculate_tiles(struct fd_context *ctx)
 	gmem->width = width;
 	gmem->height = height;
 
+	/* This will need to be updated for 8x MSAA */
+	assert(samples <= 4);
+	gmem->ms_x = samples > 1;
+	gmem->ms_y = samples > 2;
+
 	/*
 	 * Assign tiles and pipes:
 	 *

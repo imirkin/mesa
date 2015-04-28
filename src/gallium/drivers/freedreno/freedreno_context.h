@@ -355,6 +355,9 @@ struct fd_context {
 	void (*draw_vbo)(struct fd_context *pctx, const struct pipe_draw_info *info);
 	void (*clear)(struct fd_context *ctx, unsigned buffers,
 			const union pipe_color_union *color, double depth, unsigned stencil);
+	void (*resolve_surface)(struct fd_context *ctx,
+							const struct pipe_blit_info *info);
+
 };
 
 static INLINE struct fd_context *

@@ -358,6 +358,7 @@ setup_slices(struct fd_resource *rsc, uint32_t alignment)
 	uint32_t width = prsc->width0;
 	uint32_t height = prsc->height0;
 	uint32_t depth = prsc->depth0;
+	uint32_t samples = MAX2(1, prsc->nr_samples);
 	/* in layer_first layout, the level (slice) contains just one
 	 * layer (since in fact the layer contains the slices)
 	 */
@@ -366,7 +367,9 @@ setup_slices(struct fd_resource *rsc, uint32_t alignment)
 	for (level = 0; level <= prsc->last_level; level++) {
 		struct fd_resource_slice *slice = fd_resource_slice(rsc, level);
 
-		slice->pitch = width = align(width, 32);
+		width = align(width, 32);
+		/* XXX check this, perhaps width has to be multiplied first */
+		slice->pitch = width * samples;
 		slice->offset = size;
 		/* 1d array and 2d array textures must all have the same layer size
 		 * for each miplevel on a3xx. 3d textures can have different layer
@@ -610,11 +613,19 @@ fd_blit(struct pipe_context *pctx, const struct pipe_blit_info *blit_info)
 {
 	struct fd_context *ctx = fd_context(pctx);
 	struct pipe_blit_info info = *blit_info;
-
+/*
 	if (info.src.resource->nr_samples > 1 &&
 			info.dst.resource->nr_samples <= 1 &&
 			!util_format_is_depth_or_stencil(info.src.format) &&
 			!util_format_is_pure_integer(info.src.format)) {
+		/* We can do a resolve if the buffer is in gmem * /
+		struct pipe_framebuffer_state *pfb = &ctx->framebuffer;
+		//if (pfb->cbufs[0] && pfb->cbufs[0]->texture == info.src.resource) {
+			fd_hw_query_set_stage(ctx, ctx->ring, FD_STAGE_GMEM2MEM);
+			ctx->resolve_surface(ctx, blit_info);
+			fd_hw_query_set_stage(ctx, ctx->ring, FD_STAGE_NULL);
+		//}
+
 		DBG("color resolve unimplemented");
 		return;
 	}
