@@ -71,12 +71,12 @@ nv30_render_allocate_vertices(struct vbuf_render *render,
    struct nv30_render *r = nv30_render(render);
    struct nv30_context *nv30 = r->nv30;
 
-   r->length = vertex_size * nr_vertices;
+   r->length = (uint32_t)vertex_size * (uint32_t)nr_vertices;
 
    if (r->offset + r->length >= render->max_vertex_buffer_bytes) {
       pipe_resource_reference(&r->buffer, NULL);
       r->buffer = pipe_buffer_create(&nv30->screen->base.base,
-                                     PIPE_BIND_VERTEX_BUFFER, 0,
+                                     PIPE_BIND_VERTEX_BUFFER, PIPE_USAGE_STREAM,
                                      render->max_vertex_buffer_bytes);
       if (!r->buffer)
          return FALSE;
@@ -91,10 +91,14 @@ static void *
 nv30_render_map_vertices(struct vbuf_render *render)
 {
    struct nv30_render *r = nv30_render(render);
-   char *map = pipe_buffer_map(&r->nv30->base.pipe, r->buffer,
-                               PIPE_TRANSFER_WRITE |
-                               PIPE_TRANSFER_UNSYNCHRONIZED, &r->transfer);
-   return map + r->offset;
+   char *map = pipe_buffer_map_range(
+         &r->nv30->base.pipe, r->buffer,
+         r->offset, r->length,
+         PIPE_TRANSFER_WRITE |
+         PIPE_TRANSFER_DISCARD_RANGE,
+         &r->transfer);
+   assert(map);
+   return map;
 }
 
 static void
@@ -127,11 +131,17 @@ nv30_render_draw_elements(struct vbuf_render *render,
    for (i = 0; i < r->vertex_info.num_attribs; i++) {
       PUSH_RESRC(push, NV30_3D(VTXBUF(i)), BUFCTX_VTXTMP,
                        nv04_resource(r->buffer), r->offset + r->vtxptr[i],
-                       NOUVEAU_BO_LOW | NOUVEAU_BO_RD, 0, 0);
+                       NOUVEAU_BO_LOW | NOUVEAU_BO_RD, 0, NV30_3D_VTXBUF_DMA1);
    }
 
    if (!nv30_state_validate(nv30, ~0, FALSE))
       return;
+
+   if (nv30->base.vbo_dirty) {
+      BEGIN_NV04(push, NV30_3D(VTX_CACHE_INVALIDATE_1710), 1);
+      PUSH_DATA (push, 0);
+      nv30->base.vbo_dirty = FALSE;
+   }
 
    BEGIN_NV04(push, NV30_3D(VERTEX_BEGIN_END), 1);
    PUSH_DATA (push, r->prim);
@@ -172,11 +182,17 @@ nv30_render_draw_arrays(struct vbuf_render *render, unsigned start, uint nr)
    for (i = 0; i < r->vertex_info.num_attribs; i++) {
       PUSH_RESRC(push, NV30_3D(VTXBUF(i)), BUFCTX_VTXTMP,
                        nv04_resource(r->buffer), r->offset + r->vtxptr[i],
-                       NOUVEAU_BO_LOW | NOUVEAU_BO_RD, 0, 0);
+                       NOUVEAU_BO_LOW | NOUVEAU_BO_RD, 0, NV30_3D_VTXBUF_DMA1);
    }
 
    if (!nv30_state_validate(nv30, ~0, FALSE))
       return;
+
+   if (nv30->base.vbo_dirty) {
+      BEGIN_NV04(push, NV30_3D(VTX_CACHE_INVALIDATE_1710), 1);
+      PUSH_DATA (push, 0);
+      nv30->base.vbo_dirty = FALSE;
+   }
 
    BEGIN_NV04(push, NV30_3D(VERTEX_BEGIN_END), 1);
    PUSH_DATA (push, r->prim);
@@ -245,7 +261,7 @@ vroute_add(struct nv30_render *r, uint attrib, uint sem, uint *idx)
    format = draw_translate_vinfo_format(emit);
 
    r->vtxfmt[attrib] = nv30_vtxfmt(pscreen, format)->hw;
-   r->vtxptr[attrib] = vinfo->size | NV30_3D_VTXBUF_DMA1;
+   r->vtxptr[attrib] = vinfo->size;
    vinfo->size += draw_translate_vinfo_size(emit);
 
    if (nv30_screen(pscreen)->eng3d->oclass < NV40_3D_CLASS) {
