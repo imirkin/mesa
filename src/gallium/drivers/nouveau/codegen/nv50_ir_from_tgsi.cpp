@@ -948,6 +948,9 @@ void Source::scanProperty(const struct tgsi_full_property *prop)
    case TGSI_PROPERTY_FS_COORD_PIXEL_CENTER:
       // we don't care
       break;
+   case TGSI_PROPERTY_FS_DEPTH_LAYOUT:
+      info->prop.fp.depthLayout = prop->u[0].Data;
+      break;
    case TGSI_PROPERTY_VS_PROHIBIT_UCPS:
       info->io.genUserClip = -1;
       break;

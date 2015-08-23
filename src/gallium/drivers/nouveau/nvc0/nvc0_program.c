@@ -452,7 +452,7 @@ nvc0_fp_gen_header(struct nvc0_program *fp, struct nv50_ir_prog_info *info)
          fp->hdr[18] |= 0xf << info->out[i].slot[0];
    }
 
-   fp->fp.early_z = info->prop.fp.earlyFragTests;
+   fp->fp.depth_layout = info->prop.fp.depthLayout;
 
    return 0;
 }

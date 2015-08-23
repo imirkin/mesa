@@ -518,24 +518,50 @@ nvc0_validate_global_residents(struct nvc0_context *nvc0,
    }
 }
 
+static bool
+nvc0_depth_layout_test_compatible(unsigned depth_layout, unsigned test)
+{
+   if (depth_layout && (test == PIPE_FUNC_ALWAYS || test == PIPE_FUNC_NEVER))
+      return true;
+   switch (depth_layout) {
+   case TGSI_FS_DEPTH_LAYOUT_UNCHANGED:
+      return true;
+   case TGSI_FS_DEPTH_LAYOUT_GREATER:
+      return test == PIPE_FUNC_GREATER || test == PIPE_FUNC_GEQUAL;
+   case TGSI_FS_DEPTH_LAYOUT_LESS:
+      return test == PIPE_FUNC_LESS || test == PIPE_FUNC_LEQUAL;
+   default:
+      return false;
+   }
+}
+
 static void
 nvc0_validate_derived_1(struct nvc0_context *nvc0)
 {
    struct nouveau_pushbuf *push = nvc0->base.pushbuf;
+   struct nvc0_program *fp = nvc0->fragprog;
    bool rasterizer_discard;
+   bool early_z = false;
 
    if (nvc0->rast && nvc0->rast->pipe.rasterizer_discard) {
       rasterizer_discard = true;
    } else {
       bool zs = nvc0->zsa &&
          (nvc0->zsa->pipe.depth.enabled || nvc0->zsa->pipe.stencil[0].enabled);
-      rasterizer_discard = !zs &&
-         (!nvc0->fragprog || !nvc0->fragprog->hdr[18]);
+      rasterizer_discard = !zs && (!fp || !fp->hdr[18]);
    }
 
    if (rasterizer_discard != nvc0->state.rasterizer_discard) {
       nvc0->state.rasterizer_discard = rasterizer_discard;
       IMMED_NVC0(push, NVC0_3D(RASTERIZE_ENABLE), !rasterizer_discard);
+   }
+
+   if (fp && nvc0->zsa && nvc0->zsa->pipe.depth.enabled)
+      early_z = nvc0_depth_layout_test_compatible(
+         fp->fp.depth_layout, nvc0->zsa->pipe.depth.func);
+   if (early_z != nvc0->state.early_z_forced) {
+      nvc0->state.early_z_forced = early_z;
+      IMMED_NVC0(push, NVC0_3D(FORCE_EARLY_FRAGMENT_TESTS), early_z);
    }
 }
 

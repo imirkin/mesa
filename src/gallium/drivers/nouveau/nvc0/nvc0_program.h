@@ -44,7 +44,7 @@ struct nvc0_program {
       bool need_vertex_id;
    } vp;
    struct {
-      uint8_t early_z;
+      uint8_t depth_layout;
       uint8_t in_pos[PIPE_MAX_SHADER_INPUTS];
       uint8_t sample_interp;
    } fp;

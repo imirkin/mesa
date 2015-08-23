@@ -140,7 +140,7 @@ struct nv50_ir_prog_info
       struct {
          unsigned numColourResults;
          bool writesDepth;
-         bool earlyFragTests;
+         bool depthLayout;
          bool separateFragData;
          bool usesDiscard;
       } fp;
