@@ -306,10 +306,19 @@ fd3_pipe2swap(enum pipe_format format)
 }
 
 enum a3xx_tex_fetchsize
-fd3_pipe2fetchsize(enum pipe_format format)
+fd3_pipe2fetchsize(enum pipe_format format, uint8_t nr_samples)
 {
 	if (format == PIPE_FORMAT_Z32_FLOAT_S8X24_UINT)
 		format = PIPE_FORMAT_Z32_FLOAT;
+	if (!nr_samples)
+		nr_samples = 1;
+	/* TODO: This is actually entirely wrong, this has nothing to do with
+	 * prefetch, but it has to do with packing. The MINLINEOFFSET needs to be
+	 * provided in 128-bit units. Since we round up to 32 pixels, this
+	 * effectively becomes dependent on the format size.
+	 */
+	return nr_samples * util_format_get_blocksize(format) / util_format_get_blockwidth(format);
+
 	switch (util_format_get_blocksizebits(format) / util_format_get_blockwidth(format)) {
 	case 8: return TFETCH_1_BYTE;
 	case 16: return TFETCH_2_BYTE;
@@ -392,4 +401,20 @@ fd3_tex_swiz(enum pipe_format format, unsigned swizzle_r, unsigned swizzle_g,
 			A3XX_TEX_CONST_0_SWIZ_Y(tex_swiz(rswiz[1])) |
 			A3XX_TEX_CONST_0_SWIZ_Z(tex_swiz(rswiz[2])) |
 			A3XX_TEX_CONST_0_SWIZ_W(tex_swiz(rswiz[3]));
+}
+
+enum a3xx_tex_msaa
+fd3_pipe2msaa(uint8_t nr_samples) {
+	switch (nr_samples) {
+	case 0:
+	case 1:
+		return A3XX_TPL1_MSAA1X;
+	case 2:
+		return A3XX_TPL1_MSAA2X;
+	case 4:
+		return A3XX_TPL1_MSAA4X;
+	default:
+		assert(!"Unexpected number of samples");
+		return A3XX_TPL1_MSAA1X;
+	}
 }

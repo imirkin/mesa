@@ -1566,6 +1566,7 @@ emit_tex(struct ir3_compile *ctx, nir_tex_instr *tex)
 	struct ir3_block *b = ctx->block;
 	struct ir3_instruction **dst, *sam, *src0[12], *src1[4];
 	struct ir3_instruction **coord, *lod, *compare, *proj, **off, **ddx, **ddy;
+	struct ir3_instruction *ms_index;
 	bool has_bias = false, has_lod = false, has_proj = false, has_off = false;
 	unsigned i, coords, flags;
 	unsigned nsrc0 = 0, nsrc1 = 0;
@@ -1573,7 +1574,7 @@ emit_tex(struct ir3_compile *ctx, nir_tex_instr *tex)
 	opc_t opc = 0;
 
 	coord = off = ddx = ddy = NULL;
-	lod = proj = compare = NULL;
+	lod = proj = compare = ms_index = NULL;
 
 	/* TODO: might just be one component for gathers? */
 	dst = get_dst(ctx, &tex->dest, 4);
@@ -1608,6 +1609,9 @@ emit_tex(struct ir3_compile *ctx, nir_tex_instr *tex)
 		case nir_tex_src_ddy:
 			ddy = get_src(ctx, &tex->src[i].src);
 			break;
+		case nir_tex_src_ms_index:
+			ms_index = get_src(ctx, &tex->src[i].src)[0];
+			break;
 		default:
 			compile_error(ctx, "Unhandled NIR tex serc type: %d\n",
 					tex->src[i].src_type);
@@ -1621,7 +1625,7 @@ emit_tex(struct ir3_compile *ctx, nir_tex_instr *tex)
 	case nir_texop_txl:      opc = OPC_SAML;     break;
 	case nir_texop_txd:      opc = OPC_SAMGQ;    break;
 	case nir_texop_txf:      opc = OPC_ISAML;    break;
-	case nir_texop_txf_ms:
+	case nir_texop_txf_ms:   opc = OPC_ISAMM;    break;
 	case nir_texop_txs:
 	case nir_texop_lod:
 	case nir_texop_tg4:
@@ -1673,6 +1677,9 @@ emit_tex(struct ir3_compile *ctx, nir_tex_instr *tex)
 
 	if (tex->is_array)
 		src0[nsrc0++] = coord[coords];
+
+	if (opc == OPC_ISAMM)
+		src0[nsrc0++] = ms_index;
 
 	if (has_proj) {
 		src0[nsrc0++] = proj;

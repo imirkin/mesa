@@ -103,6 +103,8 @@ emit_mrt(struct fd_ringbuffer *ring, unsigned nr_bufs,
 			} else {
 				stride = slice->pitch * rsc->cpp;
 			}
+			if (psurf->texture->nr_samples > 1)
+				stride *= psurf->texture->nr_samples;
 		} else if (i < nr_bufs && bases) {
 			base = bases[i];
 		}
@@ -499,6 +501,7 @@ emit_mem2gmem_surf(struct fd_context *ctx, uint32_t bases[],
 		OUT_PKT0(ring, REG_A3XX_RB_DEPTH_INFO, 2);
 		OUT_RING(ring, A3XX_RB_DEPTH_INFO_DEPTH_BASE(bases[0]) |
 				 A3XX_RB_DEPTH_INFO_DEPTH_FORMAT(DEPTHX_32));
+		/* XXX msaa? */
 		OUT_RING(ring, A3XX_RB_DEPTH_PITCH(4 * ctx->gmem.bin_w));
 
 		if (psurf[0]->format == PIPE_FORMAT_Z32_FLOAT) {

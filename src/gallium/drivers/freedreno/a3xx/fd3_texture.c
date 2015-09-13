@@ -227,6 +227,7 @@ fd3_sampler_view_create(struct pipe_context *pctx, struct pipe_resource *prsc,
 	so->texconst0 =
 			A3XX_TEX_CONST_0_TYPE(tex_type(prsc->target)) |
 			A3XX_TEX_CONST_0_FMT(fd3_pipe2tex(cso->format)) |
+			A3XX_TEX_CONST_0_MSAATEX(fd3_pipe2msaa(prsc->nr_samples)) |
 			A3XX_TEX_CONST_0_MIPLVLS(miplevels) |
 			fd3_tex_swiz(cso->format, cso->swizzle_r, cso->swizzle_g,
 						cso->swizzle_b, cso->swizzle_a);
@@ -235,7 +236,7 @@ fd3_sampler_view_create(struct pipe_context *pctx, struct pipe_resource *prsc,
 		so->texconst0 |= A3XX_TEX_CONST_0_SRGB;
 
 	so->texconst1 =
-			A3XX_TEX_CONST_1_FETCHSIZE(fd3_pipe2fetchsize(cso->format)) |
+			A3XX_TEX_CONST_1_FETCHSIZE(fd3_pipe2fetchsize(cso->format, prsc->nr_samples)) |
 			A3XX_TEX_CONST_1_WIDTH(u_minify(prsc->width0, lvl)) |
 			A3XX_TEX_CONST_1_HEIGHT(u_minify(prsc->height0, lvl));
 	/* when emitted, A3XX_TEX_CONST_2_INDX() must be OR'd in: */
