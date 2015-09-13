@@ -1275,6 +1275,10 @@ ttn_tex(struct ttn_compile *c, nir_alu_dest dest, nir_ssa_def **src)
       num_srcs = 3;
       samp = 3;
       break;
+   case TGSI_OPCODE_LODQ:
+      op = nir_texop_lod;
+      num_srcs = 1;
+      break;
 
    default:
       fprintf(stderr, "unknown TGSI tex op %d\n", tgsi_inst->Instruction.Opcode);
@@ -1641,7 +1645,7 @@ static const nir_op op_trans[TGSI_OPCODE_LAST] = {
    [TGSI_OPCODE_UMUL_HI] = nir_op_umul_high,
 
    [TGSI_OPCODE_TG4] = 0,
-   [TGSI_OPCODE_LODQ] = 0, /* XXX */
+   [TGSI_OPCODE_LODQ] = 0,
 
    [TGSI_OPCODE_IBFE] = nir_op_ibitfield_extract,
    [TGSI_OPCODE_UBFE] = nir_op_ubitfield_extract,
@@ -1808,6 +1812,7 @@ ttn_emit_instruction(struct ttn_compile *c)
    case TGSI_OPCODE_TXQ_LZ:
    case TGSI_OPCODE_TXF:
    case TGSI_OPCODE_TG4:
+   case TGSI_OPCODE_LODQ:
       ttn_tex(c, dest, src);
       break;
 
