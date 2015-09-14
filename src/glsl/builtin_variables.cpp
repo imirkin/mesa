@@ -1050,6 +1050,9 @@ builtin_variable_generator::generate_fs_special_vars()
       add_input(VARYING_SLOT_LAYER, int_t, "gl_Layer");
       add_input(VARYING_SLOT_VIEWPORT, int_t, "gl_ViewportIndex");
    }
+
+   if (state->is_version(450, 310)/* || state->ARB_ES3_1_compatibility_enable*/)
+      add_system_value(SYSTEM_VALUE_FRAG_HELPER, bool_t, "gl_HelperInvocation");
 }
 
 
