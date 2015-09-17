@@ -368,7 +368,6 @@ setup_slices(struct fd_resource *rsc, uint32_t alignment)
 	uint32_t width = prsc->width0;
 	uint32_t height = prsc->height0;
 	uint32_t depth = prsc->depth0;
-	uint32_t samples = MAX2(1, prsc->nr_samples);
 	/* in layer_first layout, the level (slice) contains just one
 	 * layer (since in fact the layer contains the slices)
 	 */
@@ -378,7 +377,7 @@ setup_slices(struct fd_resource *rsc, uint32_t alignment)
 		struct fd_resource_slice *slice = fd_resource_slice(rsc, level);
 		uint32_t blocks;
 
-		slice->pitch = width = align(width, 32) * samples;
+		slice->pitch = width = align(width, 32);
 		slice->offset = size;
 		blocks = util_format_get_nblocks(prsc->format, width, height);
 		/* 1d array and 2d array textures must all have the same layer size
