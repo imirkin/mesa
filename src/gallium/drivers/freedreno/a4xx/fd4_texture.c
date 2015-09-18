@@ -195,10 +195,10 @@ tex_type(unsigned target)
 	switch (target) {
 	default:
 		assert(0);
-	case PIPE_BUFFER:
 	case PIPE_TEXTURE_1D:
 	case PIPE_TEXTURE_1D_ARRAY:
 		return A4XX_TEX_1D;
+	case PIPE_BUFFER:
 	case PIPE_TEXTURE_RECT:
 	case PIPE_TEXTURE_2D:
 	case PIPE_TEXTURE_2D_ARRAY:
@@ -249,15 +249,16 @@ fd4_sampler_view_create(struct pipe_context *pctx, struct pipe_resource *prsc,
 	}
 
 	if (cso->target == PIPE_BUFFER) {
-		unsigned elements = cso->u.buf.size / util_format_get_blocksize(cso->format);
-
+		unsigned elements =
+			cso->u.buf.size / util_format_get_blocksize(cso->format);
 		lvl = 0;
 		so->texconst1 =
-			A4XX_TEX_CONST_1_WIDTH(elements) |
-			A4XX_TEX_CONST_1_HEIGHT(1);
+			A4XX_TEX_CONST_1_WIDTH(MIN2(elements, 16384)) |
+			A4XX_TEX_CONST_1_HEIGHT(DIV_ROUND_UP(elements, 16384));
 		so->texconst2 =
 			A4XX_TEX_CONST_2_FETCHSIZE(fd4_pipe2fetchsize(cso->format)) |
-			A4XX_TEX_CONST_2_PITCH(elements * rsc->cpp);
+			A4XX_TEX_CONST_2_PITCH(MIN2(elements, 16384) *
+								   util_format_get_blocksize(cso->format));
 		so->offset = cso->u.buf.offset;
 	} else {
 		unsigned miplevels;

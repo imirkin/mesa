@@ -113,6 +113,9 @@ struct ir3_compile {
 
 	unsigned max_texture_index;
 
+	/* a3xx and a4xx have different max texture sizes */
+	uint8_t max_texture_size_log2;
+
 	/* set if we encounter something we can't handle yet, so we
 	 * can bail cleanly and fallback to TGSI compiler f/e
 	 */
@@ -136,6 +139,7 @@ compile_init(struct ir3_compiler *compiler,
 		ctx->levels_add_one = false;
 		ctx->unminify_coords = false;
 		ctx->array_index_add_half = true;
+		ctx->max_texture_size_log2 = 14;
 
 		if (so->type == SHADER_VERTEX)
 			ctx->astc_srgb = so->key.vastc_srgb;
@@ -148,6 +152,7 @@ compile_init(struct ir3_compiler *compiler,
 		ctx->levels_add_one = true;
 		ctx->unminify_coords = true;
 		ctx->array_index_add_half = false;
+		ctx->max_texture_size_log2 = 13;
 	}
 
 	ctx->compiler = compiler;
@@ -187,6 +192,7 @@ compile_init(struct ir3_compiler *compiler,
 	 *
 	 *    num_uniform * vec4  -  user consts
 	 *    4 * vec4            -  UBO addresses
+	 *    4 * vec4            -  TBO lengths
 	 *    if (vertex shader) {
 	 *        N * vec4        -  driver params (IR3_DP_*)
 	 *        1 * vec4        -  stream-out addresses
@@ -197,6 +203,9 @@ compile_init(struct ir3_compiler *compiler,
 	 */
 
 	/* reserve 4 (vec4) slots for ubo base addresses: */
+	so->first_immediate += 4;
+
+	/* reserve 4 (vec4) slots for tbo lengths: */
 	so->first_immediate += 4;
 
 	if (so->type == SHADER_VERTEX) {
@@ -1340,6 +1349,14 @@ tex_info(nir_tex_instr *tex, unsigned *flagsp, unsigned *coordsp)
 	*coordsp = coords;
 }
 
+/* fetch the number of elements in the TBO: */
+static struct ir3_instruction *
+tex_tbo_length(struct ir3_compile *ctx, unsigned tex_idx)
+{
+	unsigned tbo = regid(ctx->so->first_driver_param + IR3_TBOS_OFF, 0);
+	return create_uniform(ctx, tbo + tex_idx);
+}
+
 static void
 emit_tex(struct ir3_compile *ctx, nir_tex_instr *tex)
 {
@@ -1414,6 +1431,8 @@ emit_tex(struct ir3_compile *ctx, nir_tex_instr *tex)
 		return;
 	}
 
+	unsigned tex_idx = tex->texture_index;
+
 	tex_info(tex, &flags, &coords);
 
 	/*
@@ -1440,7 +1459,24 @@ emit_tex(struct ir3_compile *ctx, nir_tex_instr *tex)
 			src0[i] = ir3_SHL_B(b, src0[i], 0, lod, 0);
 	}
 
-	if (coords == 1) {
+	if (tex->sampler_dim == GLSL_SAMPLER_DIM_BUF) {
+		/* need to clamp the coordinate to the number of elements manually */
+		struct ir3_instruction *elements = tex_tbo_length(ctx, tex_idx);
+		struct ir3_instruction *cond =
+			ir3_CMPS_U(ctx->block, coord[0], 0, elements, 0);
+		cond->cat2.condition = IR3_COND_LT;
+
+		src0[0] = ir3_AND_B(b, coord[0], 0,
+							create_immed(b, (1 << ctx->max_texture_size_log2) - 1), 0);
+		src0[nsrc0++] = ir3_SHR_B(b, coord[0], 0,
+								  create_immed(b, ctx->max_texture_size_log2), 0);
+
+		/* If the coordinate is out of range, set it to -1 */
+		src0[0] = ir3_SEL_B32(b, src0[0], 0, cond, 0, create_immed(b, ~0U), 0);
+		src0[1] = ir3_SEL_B32(b, src0[1], 0, cond, 0, create_immed(b, ~0U), 0);
+
+		ctx->so->has_tbo = true;
+	} else if (coords == 1) {
 		/* hw doesn't do 1d, so we treat it as 2d with
 		 * height of 1, and patch up the y coord.
 		 * TODO: y coord should be (int)0 in some cases..
@@ -1517,8 +1553,6 @@ emit_tex(struct ir3_compile *ctx, nir_tex_instr *tex)
 
 	if (opc == OPC_GETLOD)
 		type = TYPE_U32;
-
-	unsigned tex_idx = tex->texture_index;
 
 	ctx->max_texture_index = MAX2(ctx->max_texture_index, tex_idx);
 

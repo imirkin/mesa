@@ -194,10 +194,10 @@ tex_type(unsigned target)
 	switch (target) {
 	default:
 		assert(0);
-	case PIPE_BUFFER:
 	case PIPE_TEXTURE_1D:
 	case PIPE_TEXTURE_1D_ARRAY:
 		return A3XX_TEX_1D;
+	case PIPE_BUFFER:
 	case PIPE_TEXTURE_RECT:
 	case PIPE_TEXTURE_2D:
 	case PIPE_TEXTURE_2D_ARRAY:
@@ -238,11 +238,16 @@ fd3_sampler_view_create(struct pipe_context *pctx, struct pipe_resource *prsc,
 		so->texconst0 |= A3XX_TEX_CONST_0_SRGB;
 
 	if (prsc->target == PIPE_BUFFER) {
+		unsigned elements =
+			cso->u.buf.size / util_format_get_blocksize(cso->format);
 		lvl = 0;
 		so->texconst1 =
 			A3XX_TEX_CONST_1_FETCHSIZE(fd3_pipe2fetchsize(cso->format)) |
-			A3XX_TEX_CONST_1_WIDTH(cso->u.buf.size / util_format_get_blocksize(cso->format)) |
-			A3XX_TEX_CONST_1_HEIGHT(1);
+			A3XX_TEX_CONST_1_WIDTH(MIN2(elements, 8192)) |
+			A3XX_TEX_CONST_1_HEIGHT(DIV_ROUND_UP(elements, 8192));
+		so->texconst2 =
+			A3XX_TEX_CONST_2_PITCH(MIN2(elements, 8192) *
+								   util_format_get_blocksize(cso->format));
 	} else {
 		unsigned miplevels;
 
@@ -254,10 +259,10 @@ fd3_sampler_view_create(struct pipe_context *pctx, struct pipe_resource *prsc,
 			A3XX_TEX_CONST_1_FETCHSIZE(fd3_pipe2fetchsize(cso->format)) |
 			A3XX_TEX_CONST_1_WIDTH(u_minify(prsc->width0, lvl)) |
 			A3XX_TEX_CONST_1_HEIGHT(u_minify(prsc->height0, lvl));
+		so->texconst2 =
+			A3XX_TEX_CONST_2_PITCH(fd3_pipe2nblocksx(cso->format, rsc->slices[lvl].pitch) * rsc->cpp);
 	}
 	/* when emitted, A3XX_TEX_CONST_2_INDX() must be OR'd in: */
-	so->texconst2 =
-			A3XX_TEX_CONST_2_PITCH(fd3_pipe2nblocksx(cso->format, rsc->slices[lvl].pitch) * rsc->cpp);
 	switch (prsc->target) {
 	case PIPE_TEXTURE_1D_ARRAY:
 	case PIPE_TEXTURE_2D_ARRAY:

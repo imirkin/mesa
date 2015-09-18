@@ -552,6 +552,33 @@ emit_ubos(struct fd_context *ctx, const struct ir3_shader_variant *v,
 	}
 }
 
+/* emit tbo element lengths: */
+static void
+emit_tbos(struct fd_context *ctx, const struct ir3_shader_variant *v,
+		struct fd_ringbuffer *ring, struct fd_texture_stateobj *textures)
+{
+	uint32_t offset = v->first_driver_param + IR3_TBOS_OFF;
+	if (v->constlen > offset) {
+		uint32_t params = MIN2(4, v->constlen - offset) * 4;
+		uint32_t lengths[params];
+
+		for (uint32_t i = 0; i < params; i++) {
+			struct pipe_sampler_view *tex = textures->textures[i];
+
+			if (tex && tex->texture && tex->target == PIPE_BUFFER) {
+				lengths[i] =
+					tex->u.buf.size / util_format_get_blocksize(tex->format);
+			} else {
+				lengths[i] = 0;
+			}
+		}
+
+		fd_wfi(ctx->batch, ring);
+		ctx->emit_const(ring, v->type, offset * 4, 0,
+						params, lengths, NULL);
+	}
+}
+
 static void
 emit_immediates(struct fd_context *ctx, const struct ir3_shader_variant *v,
 		struct fd_ringbuffer *ring)
@@ -658,13 +685,16 @@ ir3_emit_consts(const struct ir3_shader_variant *v, struct fd_ringbuffer *ring,
 {
 	if (dirty & (FD_DIRTY_PROG | FD_DIRTY_CONSTBUF)) {
 		struct fd_constbuf_stateobj *constbuf;
+		struct fd_texture_stateobj *textures;
 		bool shader_dirty;
 
 		if (v->type == SHADER_VERTEX) {
 			constbuf = &ctx->constbuf[PIPE_SHADER_VERTEX];
+			textures = &ctx->verttex;
 			shader_dirty = !!(dirty & FD_SHADER_DIRTY_VP);
 		} else if (v->type == SHADER_FRAGMENT) {
 			constbuf = &ctx->constbuf[PIPE_SHADER_FRAGMENT];
+			textures = &ctx->fragtex;
 			shader_dirty = !!(dirty & FD_SHADER_DIRTY_FP);
 		} else {
 			unreachable("bad shader type");
@@ -673,6 +703,8 @@ ir3_emit_consts(const struct ir3_shader_variant *v, struct fd_ringbuffer *ring,
 
 		emit_user_consts(ctx, v, ring, constbuf);
 		emit_ubos(ctx, v, ring, constbuf);
+		if (v->has_tbo)
+			emit_tbos(ctx, v, ring, textures);
 		if (shader_dirty)
 			emit_immediates(ctx, v, ring);
 	}
