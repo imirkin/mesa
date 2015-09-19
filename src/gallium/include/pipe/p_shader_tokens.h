@@ -78,6 +78,7 @@ enum tgsi_file_type {
    TGSI_FILE_SYSTEM_VALUE        =9,
    TGSI_FILE_IMAGE               =10,
    TGSI_FILE_SAMPLER_VIEW        =11,
+   TGSI_FILE_BUFFER              =12,
    TGSI_FILE_COUNT      /**< how many TGSI_FILE_ types */
 };
 
