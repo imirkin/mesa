@@ -409,7 +409,7 @@ fd_screen_get_shader_param(struct pipe_screen *pscreen, unsigned shader,
 	case PIPE_SHADER_CAP_PREFERRED_IR:
 		return PIPE_SHADER_IR_TGSI;
 	case PIPE_SHADER_CAP_MAX_SHADER_BUFFERS:
-		return 0;
+		return is_ir3(screen) ? PIPE_MAX_SHADER_BUFFERS : 0;
 	}
 	debug_printf("unknown shader param %d\n", param);
 	return 0;
