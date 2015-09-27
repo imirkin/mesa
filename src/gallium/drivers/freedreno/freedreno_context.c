@@ -179,6 +179,11 @@ fd_context_destroy(struct pipe_context *pctx)
 	for (i = 0; i < PIPE_MAX_SO_BUFFERS; i++)
 		pipe_so_target_reference(&ctx->streamout.targets[i], NULL);
 
+	for (i = 0; i < PIPE_MAX_SHADER_BUFFERS; i++) {
+		pipe_resource_reference(&ctx->buffers[PIPE_SHADER_VERTEX][i].buffer, NULL);
+		pipe_resource_reference(&ctx->buffers[PIPE_SHADER_FRAGMENT][i].buffer, NULL);
+	}
+
 	util_slab_destroy(&ctx->transfer_pool);
 
 	fd_ringmarker_del(ctx->draw_start);

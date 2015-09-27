@@ -373,6 +373,25 @@ fd_set_stream_output_targets(struct pipe_context *pctx,
 	ctx->dirty |= FD_DIRTY_STREAMOUT;
 }
 
+static void
+fd_set_shader_buffers(struct pipe_context *pctx, unsigned shader,
+					  unsigned start, unsigned nr,
+					  struct pipe_shader_buffer *buffers)
+{
+	struct fd_context *ctx = fd_context(pctx);
+	int i;
+
+	for (i = 0; i < nr; i++) {
+		struct pipe_shader_buffer *old = &ctx->buffers[shader][start + i];
+		struct pipe_shader_buffer *new = buffers ? &buffers[i] : NULL;
+		if (old->buffer)
+			pipe_resource_reference(&old->buffer, NULL);
+		*old = *new;
+	}
+
+	ctx->dirty |= FD_DIRTY_BUFFERS;
+}
+
 void
 fd_state_init(struct pipe_context *pctx)
 {
@@ -405,4 +424,6 @@ fd_state_init(struct pipe_context *pctx)
 	pctx->create_stream_output_target = fd_create_stream_output_target;
 	pctx->stream_output_target_destroy = fd_stream_output_target_destroy;
 	pctx->set_stream_output_targets = fd_set_stream_output_targets;
+
+	pctx->set_shader_buffers = fd_set_shader_buffers;
 }

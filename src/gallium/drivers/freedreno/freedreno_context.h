@@ -336,6 +336,7 @@ struct fd_context {
 		FD_DIRTY_STREAMOUT   = (1 << 18),
 		FD_DIRTY_UCP         = (1 << 19),
 		FD_DIRTY_BLEND_DUAL  = (1 << 20),
+		FD_DIRTY_BUFFERS     = (1 << 21),
 	} dirty;
 
 	struct pipe_blend_state *blend;
@@ -358,6 +359,7 @@ struct fd_context {
 	struct pipe_index_buffer indexbuf;
 	struct fd_streamout_stateobj streamout;
 	struct pipe_clip_state ucp;
+	struct pipe_shader_buffer buffers[PIPE_SHADER_TYPES][PIPE_MAX_SHADER_BUFFERS];
 
 	/* GMEM/tile handling fxns: */
 	void (*emit_tile_init)(struct fd_context *ctx);

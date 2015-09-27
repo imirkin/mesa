@@ -165,6 +165,14 @@ fd_draw_vbo(struct pipe_context *pctx, const struct pipe_draw_info *info)
 		if (ctx->streamout.targets[i])
 			resource_written(ctx, ctx->streamout.targets[i]->buffer);
 
+	/* Mark shader buffers as being read and written */
+	for (i = 0; i < PIPE_MAX_SHADER_BUFFERS; i++) {
+		resource_used(ctx, ctx->buffers[PIPE_SHADER_VERTEX][i].buffer,
+					  FD_PENDING_READ | FD_PENDING_WRITE);
+		resource_used(ctx, ctx->buffers[PIPE_SHADER_FRAGMENT][i].buffer,
+					  FD_PENDING_READ | FD_PENDING_WRITE);
+	}
+
 	ctx->num_draws++;
 
 	prims = u_reduced_prims_for_vertices(info->mode, info->count);

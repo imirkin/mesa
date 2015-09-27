@@ -68,6 +68,14 @@ fd_invalidate_resource(struct fd_context *ctx, struct pipe_resource *prsc)
 			ctx->dirty |= FD_DIRTY_CONSTBUF;
 	}
 
+	/* Buffers */
+	for (i = 0; i < 16 && !(ctx->dirty & FD_DIRTY_BUFFERS); i++) {
+		if (ctx->buffers[PIPE_SHADER_VERTEX][i].buffer == prsc)
+			ctx->dirty |= FD_DIRTY_BUFFERS;
+		if (ctx->buffers[PIPE_SHADER_FRAGMENT][i].buffer == prsc)
+			ctx->dirty |= FD_DIRTY_BUFFERS;
+	}
+
 	/* VBOs */
 	for (i = 0; i < ctx->vtx.vertexbuf.count && !(ctx->dirty & FD_DIRTY_VTXBUF); i++) {
 		if (ctx->vtx.vertexbuf.vb[i].buffer == prsc)
