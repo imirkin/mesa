@@ -280,6 +280,8 @@ ttn_emit_declaration(struct ttn_compile *c)
       c->addr_reg->num_components = 4;
    } else if (file == TGSI_FILE_SYSTEM_VALUE) {
       /* Nothing to record for system values. */
+   } else if (file == TGSI_FILE_BUFFER) {
+      /* Nothing to record for buffers. */
    } else if (file == TGSI_FILE_SAMPLER) {
       /* Nothing to record for samplers. */
    } else if (file == TGSI_FILE_SAMPLER_VIEW) {
@@ -763,7 +765,8 @@ ttn_get_src(struct ttn_compile *c, struct tgsi_full_src_register *tgsi_fsrc)
 
    if (tgsi_src->File == TGSI_FILE_NULL) {
       return nir_imm_float(b, 0.0);
-   } else if (tgsi_src->File == TGSI_FILE_SAMPLER) {
+   } else if (tgsi_src->File == TGSI_FILE_SAMPLER ||
+              tgsi_src->File == TGSI_FILE_BUFFER) {
       /* Only the index of the sampler gets used in texturing, and it will
        * handle looking that up on its own instead of using the nir_alu_src.
        */
@@ -1483,6 +1486,100 @@ ttn_txq(struct ttn_compile *c, nir_alu_dest dest, nir_ssa_def **src)
    ttn_move_dest_masked(b, dest, &qlv->dest.ssa, TGSI_WRITEMASK_W);
 }
 
+static void
+ttn_buffer(struct ttn_compile *c, nir_alu_dest dest, nir_ssa_def **src)
+{
+   nir_builder *b = &c->build;
+   struct tgsi_full_instruction *tgsi_inst = &c->token->FullInstruction;
+   nir_intrinsic_instr *instr;
+   nir_intrinsic_op op;
+   bool buf_offset_const = false;
+
+   switch (tgsi_inst->Instruction.Opcode) {
+   case TGSI_OPCODE_LOAD:
+      op = nir_intrinsic_load_ssbo;
+      /* TODO: figure out how to extract the immediate */
+      if (1 || tgsi_inst->Src[1].Register.File != TGSI_FILE_IMMEDIATE)
+         op = nir_intrinsic_load_ssbo_indirect;
+      else
+         buf_offset_const = true;
+      break;
+   case TGSI_OPCODE_STORE:
+      op = nir_intrinsic_store_ssbo;
+      /* TODO: figure out how to extract the immediate */
+      if (1 || tgsi_inst->Src[1].Register.File != TGSI_FILE_IMMEDIATE)
+         op = nir_intrinsic_store_ssbo_indirect;
+      else
+         buf_offset_const = true;
+      break;
+   case TGSI_OPCODE_ATOMUADD:
+      op = nir_intrinsic_ssbo_atomic_add;
+      break;
+   case TGSI_OPCODE_ATOMXCHG:
+      op = nir_intrinsic_ssbo_atomic_exchange;
+      break;
+   case TGSI_OPCODE_ATOMCAS:
+      op = nir_intrinsic_ssbo_atomic_comp_swap;
+      break;
+   case TGSI_OPCODE_ATOMAND:
+      op = nir_intrinsic_ssbo_atomic_and;
+      break;
+   case TGSI_OPCODE_ATOMOR:
+      op = nir_intrinsic_ssbo_atomic_or;
+      break;
+   case TGSI_OPCODE_ATOMXOR:
+      op = nir_intrinsic_ssbo_atomic_xor;
+      break;
+   case TGSI_OPCODE_ATOMUMIN: /* XXX */
+   case TGSI_OPCODE_ATOMIMIN:
+      op = nir_intrinsic_ssbo_atomic_min;
+      break;
+   case TGSI_OPCODE_ATOMUMAX: /* XXX */
+   case TGSI_OPCODE_ATOMIMAX:
+      op = nir_intrinsic_ssbo_atomic_max;
+      break;
+   default:
+      unreachable("Unexpected buffer opcode");
+   }
+
+   for (unsigned c = 0; c < 4; c++) {
+      if (!(dest.write_mask & (1 << c)))
+         continue;
+
+      instr = nir_intrinsic_instr_create(b->shader, op);
+      instr->src[0] = nir_src_for_ssa(
+            nir_imm_int(b, tgsi_inst->Src[0].Register.Index));
+/* TODO: make this work and adjust conditions above.
+      if (buf_offset_const) {
+         nir_const_value *val = nir_src_as_const_value(
+               nir_src_for_ssa(src[1]));
+         instr->const_index[0] = val->u[c];
+      }
+*/
+      if (tgsi_inst->Instruction.Opcode == TGSI_OPCODE_LOAD) {
+         instr->num_components = 1;
+         if (!buf_offset_const)
+            instr->src[1] = nir_src_for_ssa(nir_channel(b, src[1], c));
+      } else if (tgsi_inst->Instruction.Opcode == TGSI_OPCODE_STORE) {
+         instr->src[1] = instr->src[0];
+         instr->src[0] = nir_src_for_ssa(nir_channel(b, src[2], c));
+         if (!buf_offset_const)
+            instr->src[2] = nir_src_for_ssa(nir_channel(b, src[1], c));
+      } else {
+         instr->num_components = 1;
+         instr->src[1] = nir_src_for_ssa(nir_channel(b, src[1], c));
+         instr->src[2] = nir_src_for_ssa(nir_channel(b, src[2], c));
+         if (op == TGSI_OPCODE_ATOMCAS)
+            instr->src[3] = nir_src_for_ssa(nir_channel(b, src[3], c));
+      }
+
+      nir_ssa_dest_init(&instr->instr, &instr->dest, 1, NULL);
+      nir_builder_instr_insert(b, &instr->instr);
+
+      ttn_move_dest_masked(b, dest, &instr->dest.ssa, 1 << c);
+   }
+}
+
 static const nir_op op_trans[TGSI_OPCODE_LAST] = {
    [TGSI_OPCODE_ARL] = 0,
    [TGSI_OPCODE_MOV] = nir_op_fmov,
@@ -1820,7 +1917,26 @@ ttn_emit_instruction(struct ttn_compile *c)
       ttn_txq(c, dest, src);
       break;
 
+   case TGSI_OPCODE_LOAD:
+   case TGSI_OPCODE_STORE:
+   case TGSI_OPCODE_ATOMUADD:
+   case TGSI_OPCODE_ATOMXCHG:
+   case TGSI_OPCODE_ATOMCAS:
+   case TGSI_OPCODE_ATOMAND:
+   case TGSI_OPCODE_ATOMOR:
+   case TGSI_OPCODE_ATOMXOR:
+   case TGSI_OPCODE_ATOMUMIN:
+   case TGSI_OPCODE_ATOMUMAX:
+   case TGSI_OPCODE_ATOMIMIN:
+   case TGSI_OPCODE_ATOMIMAX:
+      ttn_buffer(c, dest, src);
+      break;
+
    case TGSI_OPCODE_NOP:
+   /* XXX Make the st not generate these for ir_call intrinsics */
+   case TGSI_OPCODE_BGNSUB:
+   case TGSI_OPCODE_RET:
+   case TGSI_OPCODE_ENDSUB:
       break;
 
    case TGSI_OPCODE_IF:
