@@ -264,7 +264,8 @@ compile_init(struct ir3_compiler *compiler,
 	 */
 
 	/* reserve 4 (vec4) slots for ubo base addresses: */
-	so->first_immediate += 4;
+	/* reserve 8 (vec4) slots for buffer base addresses: */
+	so->first_immediate += 12;
 
 	if (so->type == SHADER_VERTEX) {
 		/* driver params (see ir3_driver_param): */

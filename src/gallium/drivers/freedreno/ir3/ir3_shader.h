@@ -50,6 +50,7 @@ enum ir3_driver_param {
  *
  *    num_uniform * vec4  -  user consts
  *    4 * vec4            -  UBO addresses
+ *    8 * vec4            -  Buffer addresses
  *    if (vertex shader) {
  *        N * vec4        -  driver params (IR3_DP_*)
  *        1 * vec4        -  stream-out addresses
@@ -59,7 +60,8 @@ enum ir3_driver_param {
  * that we don't need..
  */
 #define IR3_UBOS_OFF         0  /* UBOs after user consts */
-#define IR3_DRIVER_PARAM_OFF 4  /* driver params after UBOs */
+#define IR3_BUFS_OFF         4  /* Buffers after UBOs */
+#define IR3_DRIVER_PARAM_OFF 12 /* driver params after buffers */
 #define IR3_TFBOS_OFF       (IR3_DRIVER_PARAM_OFF + IR3_DP_COUNT/4)
 
 /* Configuration key used to identify a shader variant.. different

@@ -528,6 +528,34 @@ emit_ubos(struct ir3_shader_variant *v, struct fd_ringbuffer *ring,
 }
 
 static void
+emit_buffers(struct ir3_shader_variant *v, struct fd_ringbuffer *ring,
+			 struct pipe_shader_buffer *buffers)
+{
+	uint32_t offset = v->first_driver_param + IR3_BUFS_OFF;
+	if (v->constlen > offset) {
+		struct fd_context *ctx = fd_context(v->shader->pctx);
+		uint32_t params = MIN2(4, v->constlen - offset) * 4;
+		uint32_t offsets[params];
+		struct fd_bo *bos[params];
+
+		for (uint32_t i = 0; i < params; i++) {
+			struct pipe_shader_buffer *sb = &buffers[i];
+
+			if (sb->buffer) {
+				offsets[i] = sb->buffer_offset;
+				bos[i] = fd_resource(sb->buffer)->bo;
+			} else {
+				offsets[i] = 0;
+				bos[i] = NULL;
+			}
+		}
+
+		fd_wfi(ctx, ring);
+		ctx->emit_const_bo(ring, v->type, true, offset * 4, params, bos, offsets);
+	}
+}
+
+static void
 emit_immediates(struct ir3_shader_variant *v, struct fd_ringbuffer *ring)
 {
 	struct fd_context *ctx = fd_context(v->shader->pctx);
@@ -653,6 +681,20 @@ ir3_emit_consts(struct ir3_shader_variant *v, struct fd_ringbuffer *ring,
 		emit_ubos(v, ring, constbuf);
 		if (shader_dirty)
 			emit_immediates(v, ring);
+	}
+
+	if (dirty & (FD_DIRTY_PROG | FD_DIRTY_BUFFERS)) {
+		struct pipe_shader_buffer *buffers;
+
+		if (v->type == SHADER_VERTEX) {
+			buffers = ctx->buffers[PIPE_SHADER_VERTEX];
+		} else if (v->type == SHADER_FRAGMENT) {
+			buffers = ctx->buffers[PIPE_SHADER_FRAGMENT];
+		} else {
+			unreachable("bad shader type");
+		}
+
+		emit_buffers(v, ring, buffers);
 	}
 
 	/* emit driver params every time: */
