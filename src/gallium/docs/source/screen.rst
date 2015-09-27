@@ -356,6 +356,10 @@ to be 0.
   are supported.
 * ``PIPE_SHADER_CAP_TGSI_ANY_INOUT_DECL_RANGE``: Whether the driver doesn't
   ignore tgsi_declaration_range::Last for shader inputs and outputs.
+* ``PIPE_SHADER_CAP_MAX_SHADER_BUFFERS``: Maximum number of memory buffers
+  (also used to implement atomic counters). Having this be non-0 also
+  implies support for the ``LOAD``, ``STORE``, and ``ATOM*`` TGSI
+  opcodes.
 
 
 .. _pipe_compute_cap:
