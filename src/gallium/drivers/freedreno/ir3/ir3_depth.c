@@ -60,7 +60,7 @@ int ir3_delayslots(struct ir3_instruction *assigner,
 	 * handled with sync bits
 	 */
 
-	if (is_meta(assigner))
+	if (is_meta(assigner) || consumer->regs[n + 1]->flags & IR3_REG_FAKE)
 		return 0;
 
 	if (writes_addr(assigner))
@@ -121,6 +121,7 @@ ir3_instr_depth(struct ir3_instruction *instr)
 		sd = ir3_delayslots(src, instr, i) + src->depth;
 
 		instr->depth = MAX2(instr->depth, sd);
+		instr->regs[i + 1]->flags &= ~IR3_REG_FAKE;
 	}
 
 	if (!is_meta(instr))

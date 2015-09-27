@@ -528,7 +528,7 @@ static int emit_cat6(struct ir3_instruction *instr, void *ptr,
 	 * indicate to use the src_off encoding even if offset is zero
 	 * (but then what to do about dst_off?)
 	 */
-	if (instr->cat6.src_offset || (instr->opc == OPC_LDG)) {
+	if (instr->cat6.src_offset || (instr->opc == OPC_LDG || is_atomic(instr))) {
 		instr_cat6a_t *cat6a = ptr;
 
 		cat6->src_off = true;

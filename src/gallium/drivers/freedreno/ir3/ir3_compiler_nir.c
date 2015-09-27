@@ -121,6 +121,8 @@ struct ir3_compile {
 	 * can bail cleanly and fallback to TGSI compiler f/e
 	 */
 	bool error;
+
+	struct ir3_instruction *last_mem;
 };
 
 
@@ -1235,6 +1237,64 @@ emit_intrinsic_load_ubo(struct ir3_compile *ctx, nir_intrinsic_instr *intr,
 	}
 }
 
+/* handles buffer reads/writes/atomics: */
+static void
+emit_intrinsic_buffer(struct ir3_compile *ctx, nir_intrinsic_instr *intr,
+		struct ir3_instruction **dst)
+{
+	struct ir3_block *b = ctx->block;
+	struct ir3_instruction *addr, *load, *src[3];
+	/* Buffer addresses are driver params: */
+	unsigned buf = regid(ctx->so->first_driver_param + IR3_BUFS_OFF, 0);
+	nir_const_value *index = nir_src_as_const_value(intr->src[0]);
+	nir_const_value *add;
+	unsigned offset = intr->const_index[0];
+
+	/* Get the buffer address: */
+	assert(index); /* XXX */
+	addr = create_uniform(ctx, buf + (index ? index->u[0] : 0));
+
+	/* Add the buffer offset to the address: */
+	if (intr->intrinsic != nir_intrinsic_load_ssbo &&
+		intr->intrinsic != nir_intrinsic_store_ssbo)
+		addr = ir3_ADD_S(b, addr, 0, get_src(ctx, &intr->src[1])[0], 0);
+	if (offset > 1024) {
+		addr = ir3_ADD_S(b, addr, 0, create_immed(b, offset), 0);
+		offset = 0;
+	}
+
+	switch (intr->intrinsic) {
+	case nir_intrinsic_load_ssbo:
+	case nir_intrinsic_load_ssbo_indirect:
+		load = ir3_LDG(b, addr, 0, create_immed(b, 1), 0);
+		break;
+	case nir_intrinsic_ssbo_atomic_add:
+		add = nir_src_as_const_value(intr->src[2]);
+		if (add && add->i[0] == 1) {
+			load = ir3_ATOMIC_INC(b, addr, 0);
+		} else if (add && add->i[0] == -1) {
+			load = ir3_ATOMIC_DEC(b, addr, 0);
+		} else {
+			src[0] = create_immed(b, 0);
+			src[1] = get_src(ctx, &intr->src[2])[0];
+			load = ir3_ATOMIC_ADD(b, addr, 0, create_collect(b, src, 2), 0);
+		}
+		load->flags |= IR3_INSTR_G;
+		array_insert(ctx->ir->keeps, load);
+		break;
+	default:
+		unreachable("unexpected intrinsic");
+	}
+	load->cat6.type = TYPE_U32; /* XXX */
+	load->cat6.src_offset = offset;
+	if (ctx->last_mem)
+		ir3_reg_create(load, 0, IR3_REG_SSA | IR3_REG_FAKE)->instr =
+			ctx->last_mem;
+
+	dst[0] = ctx->last_mem = load;
+}
+
+
 /* handles array reads: */
 static void
 emit_intrinisic_load_var(struct ir3_compile *ctx, nir_intrinsic_instr *intr,
@@ -1490,6 +1550,20 @@ emit_intrinisic(struct ir3_compile *ctx, nir_intrinsic_instr *intr)
 
 		break;
 	}
+	case nir_intrinsic_load_ssbo:
+	case nir_intrinsic_load_ssbo_indirect:
+	case nir_intrinsic_store_ssbo:
+	case nir_intrinsic_store_ssbo_indirect:
+	case nir_intrinsic_ssbo_atomic_add:
+	case nir_intrinsic_ssbo_atomic_min:
+	case nir_intrinsic_ssbo_atomic_max:
+	case nir_intrinsic_ssbo_atomic_and:
+	case nir_intrinsic_ssbo_atomic_or:
+	case nir_intrinsic_ssbo_atomic_xor:
+	case nir_intrinsic_ssbo_atomic_exchange:
+	case nir_intrinsic_ssbo_atomic_comp_swap:
+		emit_intrinsic_buffer(ctx, intr, dst);
+		break;
 	default:
 		compile_error(ctx, "Unhandled intrinsic type: %s\n",
 				nir_intrinsic_infos[intr->intrinsic].name);

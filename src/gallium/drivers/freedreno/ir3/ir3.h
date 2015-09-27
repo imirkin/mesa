@@ -84,6 +84,7 @@ struct ir3_register {
 		 */
 		IR3_REG_SSA    = 0x2000,   /* 'instr' is ptr to assigning instr */
 		IR3_REG_PHI_SRC= 0x4000,   /* phi src, regs[0]->instr points to phi */
+		IR3_REG_FAKE   = 0x8000,   /* fake source, used for ordering */
 
 	} flags;
 	union {
@@ -580,6 +581,21 @@ static inline bool is_load(struct ir3_instruction *instr)
 	return false;
 }
 
+static inline bool
+is_atomic(struct ir3_instruction *instr)
+{
+	if (!is_mem(instr))
+		return false;
+	switch (instr->opc) {
+	case OPC_ATOMIC_ADD:
+	case OPC_ATOMIC_INC:
+	case OPC_ATOMIC_DEC:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static inline bool is_input(struct ir3_instruction *instr)
 {
 	/* in some cases, ldlv is used to fetch varying without
@@ -1070,6 +1086,10 @@ ir3_SAM(struct ir3_block *block, opc_t opc, type_t type,
 INSTR2(6, LDLV)
 INSTR2(6, LDG)
 INSTR3(6, STG)
+
+INSTR2(6, ATOMIC_ADD)
+INSTR1(6, ATOMIC_INC)
+INSTR1(6, ATOMIC_DEC)
 
 /* ************************************************************************* */
 /* split this out or find some helper to use.. like main/bitset.h.. */
