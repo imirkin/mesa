@@ -145,7 +145,7 @@ void
 fd_context_destroy(struct pipe_context *pctx)
 {
 	struct fd_context *ctx = fd_context(pctx);
-	unsigned i;
+	unsigned i, j;
 
 	DBG("");
 
@@ -161,6 +161,23 @@ fd_context_destroy(struct pipe_context *pctx)
 		util_primconvert_destroy(ctx->primconvert);
 
 	util_unreference_framebuffer_state(&ctx->framebuffer);
+
+	for (i = 0; i < PIPE_SHADER_TYPES; i++)
+		for (j = 0; j < PIPE_MAX_CONSTANT_BUFFERS; j++)
+			pipe_resource_reference(&ctx->constbuf[i].cb[j].buffer, NULL);
+
+	for (i = 0; i < PIPE_MAX_ATTRIBS; i++)
+		pipe_resource_reference(&ctx->vtx.vertexbuf.vb[i].buffer, NULL);
+
+	pipe_resource_reference(&ctx->indexbuf.buffer, NULL);
+
+	for (i = 0; i < PIPE_MAX_SAMPLERS; i++) {
+		pipe_sampler_view_reference(&ctx->verttex.textures[i], NULL);
+		pipe_sampler_view_reference(&ctx->fragtex.textures[i], NULL);
+	}
+
+	for (i = 0; i < PIPE_MAX_SO_BUFFERS; i++)
+		pipe_so_target_reference(&ctx->streamout.targets[i], NULL);
 
 	util_slab_destroy(&ctx->transfer_pool);
 
