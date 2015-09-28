@@ -37,6 +37,7 @@
 #include "util/u_format_s3tc.h"
 #include "util/u_string.h"
 #include "util/u_debug.h"
+#include "util/ralloc.h"
 
 #include "os/os_time.h"
 
@@ -118,6 +119,9 @@ fd_screen_destroy(struct pipe_screen *pscreen)
 
 	if (screen->dev)
 		fd_device_del(screen->dev);
+
+	if (screen->compiler)
+		ralloc_free(screen->compiler);
 
 	free(screen);
 }

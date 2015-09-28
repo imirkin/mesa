@@ -295,6 +295,8 @@ compile_error(struct ir3_compile *ctx, const char *format, ...)
 static void
 compile_free(struct ir3_compile *ctx)
 {
+	if (ctx->s)
+		ralloc_free(ctx->s);
 	ralloc_free(ctx);
 }
 
