@@ -426,6 +426,7 @@ public:
    /*@}*/
 
    void visit_atomic_counter_intrinsic(ir_call *);
+   void visit_ssbo_intrinsic(ir_call *);
 
    st_src_reg result;
 
@@ -3106,6 +3107,51 @@ glsl_to_tgsi_visitor::visit_atomic_counter_intrinsic(ir_call *ir)
 }
 
 void
+glsl_to_tgsi_visitor::visit_ssbo_intrinsic(ir_call *ir)
+{
+   const char *callee = ir->callee->function_name();
+   exec_node *param = ir->actual_parameters.get_head();
+
+   ir_rvalue *block = ((ir_instruction *)param)->as_rvalue();
+
+   param = param->get_next();
+   ir_rvalue *offset = ((ir_instruction *)param)->as_rvalue();
+
+   ir_constant *const_block = block->as_constant();
+   assert(const_block);
+
+   /* XXX use accept */
+   st_src_reg buffer(
+         PROGRAM_SAMPLER, 16 + const_block->value.u[0], GLSL_TYPE_UINT);
+
+   /* Calculate the surface offset */
+   offset->accept(this);
+   st_src_reg off = this->result;
+
+   st_dst_reg dst = undef_dst;
+   if (ir->return_deref) {
+      ir->return_deref->accept(this);
+      dst = st_dst_reg(this->result);
+      dst.writemask = WRITEMASK_X;
+   }
+
+   glsl_to_tgsi_instruction *inst;
+
+   if (!strcmp("__intrinsic_load_ssbo", callee)) {
+      inst = emit_asm(ir, TGSI_OPCODE_LOAD, dst, off);
+      inst->buffer = buffer;
+   } else if (!strcmp("__intrinsic_store_ssbo", callee)) {
+      param = param->get_next();
+      ir_rvalue *val = ((ir_instruction *)param)->as_rvalue();
+      val->accept(this);
+      inst = emit_asm(ir, TGSI_OPCODE_STORE, dst, off, this->result);
+      inst->buffer = buffer;
+   } else {
+      assert(0);
+   }
+}
+
+void
 glsl_to_tgsi_visitor::visit(ir_call *ir)
 {
    glsl_to_tgsi_instruction *call_inst;
@@ -3119,6 +3165,12 @@ glsl_to_tgsi_visitor::visit(ir_call *ir)
        !strcmp("__intrinsic_atomic_increment", callee) ||
        !strcmp("__intrinsic_atomic_predecrement", callee)) {
       visit_atomic_counter_intrinsic(ir);
+      return;
+   }
+
+   if (!strcmp("__intrinsic_load_ssbo", callee) ||
+       !strcmp("__intrinsic_store_ssbo", callee)) {
+      visit_ssbo_intrinsic(ir);
       return;
    }
 
@@ -5816,7 +5868,7 @@ st_translate_program(
       }
    }
 
-   for (i = 0; i < ctx->Const.Program[MESA_SHADER_FRAGMENT].MaxAtomicBuffers; i++) {
+   for (i = 0; i < ctx->Const.Program[MESA_SHADER_FRAGMENT].MaxAtomicBuffers + ctx->Const.Program[MESA_SHADER_FRAGMENT].MaxShaderStorageBlocks; i++) {
       if (program->buffers_used & (1 << i)) {
          t->buffers[i] = ureg_DECL_buffer(ureg, i);
       }
