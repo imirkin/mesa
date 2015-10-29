@@ -1020,6 +1020,88 @@ static void dfrac_emit(
                                                        emit_data->args[0], tmp, "");
 }
 
+static void
+pk2h_fetch_args(
+   struct lp_build_tgsi_context * bld_base,
+   struct lp_build_emit_data * emit_data)
+{
+   /* src0.x */
+   emit_data->args[0] = lp_build_emit_fetch(bld_base, emit_data->inst,
+                                            0, TGSI_CHAN_X);
+   /* src0.y */
+   emit_data->args[1] = lp_build_emit_fetch(bld_base, emit_data->inst,
+                                            0, TGSI_CHAN_Y);
+}
+
+static void
+emit_pk2h(const struct lp_build_tgsi_action *action,
+          struct lp_build_tgsi_context *bld_base,
+          struct lp_build_emit_data *emit_data)
+{
+   LLVMBuilderRef builder = bld_base->base.gallivm->builder;
+   LLVMContextRef context = bld_base->base.gallivm->context;
+   struct lp_build_context *uint_bld = &bld_base->uint_bld;
+   LLVMTypeRef fp16 = LLVMVectorType(LLVMHalfTypeInContext(context),
+                                     bld_base->base.type.length);
+   LLVMTypeRef i16 = LLVMVectorType(LLVMInt16TypeInContext(context),
+                                    bld_base->base.type.length);
+   LLVMValueRef const16 = lp_build_const_vec(uint_bld->gallivm, uint_bld->type,
+                                             16);
+
+   LLVMValueRef low = LLVMBuildFPTrunc(
+      builder, emit_data->args[0], fp16, "");
+   LLVMValueRef high = LLVMBuildFPTrunc(
+      builder, emit_data->args[1], fp16, "");
+
+   low = LLVMBuildZExt(builder, LLVMBuildBitCast(builder, low, i16, ""),
+                       uint_bld->vec_type, "");
+   high = LLVMBuildZExt(builder, LLVMBuildBitCast(builder, high, i16, ""),
+                        uint_bld->vec_type, "");
+
+   emit_data->output[emit_data->chan] =
+      LLVMBuildOr(builder, low, LLVMBuildShl(builder, high, const16, ""), "");
+}
+
+static void
+up2h_fetch_args(
+   struct lp_build_tgsi_context * bld_base,
+   struct lp_build_emit_data * emit_data)
+{
+   /* src0.x */
+   emit_data->args[0] = lp_build_emit_fetch(bld_base, emit_data->inst,
+                                            0, TGSI_CHAN_X);
+}
+
+static void
+emit_up2h(const struct lp_build_tgsi_action *action,
+          struct lp_build_tgsi_context *bld_base,
+          struct lp_build_emit_data *emit_data)
+{
+   LLVMBuilderRef builder = bld_base->base.gallivm->builder;
+   LLVMContextRef context = bld_base->base.gallivm->context;
+   struct lp_build_context *uint_bld = &bld_base->uint_bld;
+   LLVMTypeRef fp16 = LLVMVectorType(LLVMHalfTypeInContext(context),
+                                     bld_base->base.type.length);
+   LLVMTypeRef i16 = LLVMVectorType(LLVMInt16TypeInContext(context),
+                                    bld_base->base.type.length);
+   LLVMValueRef const16 = lp_build_const_vec(uint_bld->gallivm, uint_bld->type,
+                                             16);
+
+   LLVMValueRef input = LLVMBuildBitCast(
+      builder, emit_data->args[0], bld_base->base.int_vec_type, "");
+   int i;
+
+   for (i = 0; i < 2; i++) {
+      LLVMValueRef val = input;
+      if (i == 1)
+         val = LLVMBuildLShr(builder, val, const16, "");
+      val = LLVMBuildTrunc(builder, val, i16, "");
+      val = LLVMBuildBitCast(builder, val, fp16, "");
+      emit_data->output[i] =
+         LLVMBuildFPExt(builder, val, bld_base->base.vec_type, "");
+   }
+}
+
 void
 lp_set_default_actions(struct lp_build_tgsi_context * bld_base)
 {
@@ -1093,6 +1175,11 @@ lp_set_default_actions(struct lp_build_tgsi_context * bld_base)
    bld_base->op_actions[TGSI_OPCODE_DRCP].emit = drcp_emit;
    bld_base->op_actions[TGSI_OPCODE_DFRAC].emit = dfrac_emit;
 
+   bld_base->op_actions[TGSI_OPCODE_PK2H].fetch_args = pk2h_fetch_args;
+   bld_base->op_actions[TGSI_OPCODE_PK2H].emit = emit_pk2h;
+
+   bld_base->op_actions[TGSI_OPCODE_UP2H].fetch_args = up2h_fetch_args;
+   bld_base->op_actions[TGSI_OPCODE_UP2H].emit = emit_up2h;
 }
 
 /* CPU Only default actions */
