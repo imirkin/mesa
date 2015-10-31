@@ -227,6 +227,8 @@ MAIN_FILES = \
 	main/textureview.h \
 	main/texturebarrier.c \
 	main/texturebarrier.h \
+	main/threadpool.c \
+	main/threadpool.h \
 	main/transformfeedback.c \
 	main/transformfeedback.h \
 	main/uniform_query.cpp \

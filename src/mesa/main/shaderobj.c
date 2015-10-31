@@ -143,6 +143,8 @@ _mesa_lookup_shader(struct gl_context *ctx, GLuint name)
       if (sh && sh->Type == GL_SHADER_PROGRAM_MESA) {
          return NULL;
       }
+      if (sh->Compiling)
+         _mesa_threadpool_wait(&ctx->ShaderCompilerPool, &sh->Compiling);
       return sh;
    }
    return NULL;
@@ -153,7 +155,8 @@ _mesa_lookup_shader(struct gl_context *ctx, GLuint name)
  * As above, but record an error if shader is not found.
  */
 struct gl_shader *
-_mesa_lookup_shader_err(struct gl_context *ctx, GLuint name, const char *caller)
+_mesa_lookup_shader_err_wait(
+      struct gl_context *ctx, GLuint name, const char *caller, bool wait)
 {
    if (!name) {
       _mesa_error(ctx, GL_INVALID_VALUE, "%s", caller);
@@ -170,10 +173,17 @@ _mesa_lookup_shader_err(struct gl_context *ctx, GLuint name, const char *caller)
          _mesa_error(ctx, GL_INVALID_OPERATION, "%s", caller);
          return NULL;
       }
+      if (sh->Compiling && wait)
+         _mesa_threadpool_wait(&ctx->ShaderCompilerPool, &sh->Compiling);
       return sh;
    }
 }
 
+struct gl_shader *
+_mesa_lookup_shader_err(struct gl_context *ctx, GLuint name, const char *caller)
+{
+   return _mesa_lookup_shader_err_wait(ctx, name, caller, true);
+}
 
 
 /**********************************************************************/
@@ -400,6 +410,8 @@ _mesa_lookup_shader_program(struct gl_context *ctx, GLuint name)
       if (shProg && shProg->Type != GL_SHADER_PROGRAM_MESA) {
          return NULL;
       }
+      if (shProg->Compiling)
+         _mesa_threadpool_wait(&ctx->ShaderCompilerPool, &shProg->Compiling);
       return shProg;
    }
    return NULL;
@@ -410,8 +422,8 @@ _mesa_lookup_shader_program(struct gl_context *ctx, GLuint name)
  * As above, but record an error if program is not found.
  */
 struct gl_shader_program *
-_mesa_lookup_shader_program_err(struct gl_context *ctx, GLuint name,
-                                const char *caller)
+_mesa_lookup_shader_program_err_wait(struct gl_context *ctx, GLuint name,
+                                     const char *caller, bool wait)
 {
    if (!name) {
       _mesa_error(ctx, GL_INVALID_VALUE, "%s", caller);
@@ -428,8 +440,17 @@ _mesa_lookup_shader_program_err(struct gl_context *ctx, GLuint name,
          _mesa_error(ctx, GL_INVALID_OPERATION, "%s", caller);
          return NULL;
       }
+      if (shProg->Compiling && wait)
+         _mesa_threadpool_wait(&ctx->ShaderCompilerPool, &shProg->Compiling);
       return shProg;
    }
+}
+
+struct gl_shader_program *
+_mesa_lookup_shader_program_err(
+      struct gl_context *ctx, GLuint name, const char *caller)
+{
+   return _mesa_lookup_shader_program_err_wait(ctx, name, caller, true);
 }
 
 

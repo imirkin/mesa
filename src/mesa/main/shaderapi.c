@@ -580,8 +580,9 @@ static void
 get_programiv(struct gl_context *ctx, GLuint program, GLenum pname,
               GLint *params)
 {
-   struct gl_shader_program *shProg
-      = _mesa_lookup_shader_program_err(ctx, program, "glGetProgramiv(program)");
+   struct gl_shader_program *shProg = _mesa_lookup_shader_program_err_wait(
+         ctx, program, "glGetProgramiv(program)",
+         pname != GL_COMPLETION_STATUS_ARB);
 
    /* Is transform feedback available in this context?
     */
@@ -838,7 +839,8 @@ static void
 get_shaderiv(struct gl_context *ctx, GLuint name, GLenum pname, GLint *params)
 {
    struct gl_shader *shader =
-      _mesa_lookup_shader_err(ctx, name, "glGetShaderiv");
+      _mesa_lookup_shader_err_wait(ctx, name, "glGetShaderiv",
+                                   pname != GL_COMPLETION_STATUS_ARB);
 
    if (!shader) {
       return;

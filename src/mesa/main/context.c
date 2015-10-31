@@ -1251,6 +1251,7 @@ _mesa_initialize_context(struct gl_context *ctx,
 
    ctx->FirstTimeCurrent = GL_TRUE;
    ctx->MaxShaderCompilerThreads = 0xFFFFFFFF;
+   _mesa_threadpool_init(&ctx->ShaderCompilerPool);
 
    return GL_TRUE;
 
@@ -1335,6 +1336,8 @@ _mesa_free_context_data( struct gl_context *ctx )
    _mesa_reference_fragprog(ctx, &ctx->FragmentProgram.Current, NULL);
    _mesa_reference_fragprog(ctx, &ctx->FragmentProgram._Current, NULL);
    _mesa_reference_fragprog(ctx, &ctx->FragmentProgram._TexEnvProgram, NULL);
+
+   _mesa_threadpool_destroy(&ctx->ShaderCompilerPool);
 
    _mesa_reference_vao(ctx, &ctx->Array.VAO, NULL);
    _mesa_reference_vao(ctx, &ctx->Array.DefaultVAO, NULL);

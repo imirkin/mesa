@@ -44,6 +44,7 @@
 #include "math/m_matrix.h"	/* GLmatrix */
 #include "glsl/nir/shader_enums.h"
 #include "main/formats.h"       /* MESA_FORMAT_COUNT */
+#include "main/threadpool.h"
 
 
 #ifdef __cplusplus
@@ -2213,7 +2214,7 @@ struct gl_shader
    GLchar *Label;   /**< GL_KHR_debug */
    GLboolean DeletePending;
    GLboolean CompileStatus;
-   GLboolean Compiling;    /**< !GL_COMPLETION_STATUS_ARB */
+   void *Compiling; /**< !GL_COMPLETION_STATUS_ARB */
    bool IsES;              /**< True if this shader uses GLSL ES */
 
    GLuint SourceChecksum;       /**< for debug/logging purposes */
@@ -2741,7 +2742,7 @@ struct gl_shader_program
 
    GLboolean LinkStatus;   /**< GL_LINK_STATUS */
    GLboolean Validated;
-   GLboolean Compiling;    /**< !GL_COMPLETION_STATUS_ARB */
+   void *Compiling; /**< !GL_COMPLETION_STATUS_ARB */
    GLboolean _Used;        /**< Ever used for drawing? */
    GLboolean SamplersValidated; /**< Samplers validated against texture units? */
    GLchar *InfoLog;
@@ -4299,6 +4300,8 @@ struct gl_context
 
    struct gl_pipeline_shader_state Pipeline; /**< GLSL pipeline shader object state */
    struct gl_pipeline_object Shader; /**< GLSL shader object state */
+
+   struct mesa_threadpool ShaderCompilerPool;
    GLuint MaxShaderCompilerThreads;
 
    /**
