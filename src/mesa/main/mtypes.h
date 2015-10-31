@@ -2213,6 +2213,7 @@ struct gl_shader
    GLchar *Label;   /**< GL_KHR_debug */
    GLboolean DeletePending;
    GLboolean CompileStatus;
+   GLboolean Compiling;    /**< !GL_COMPLETION_STATUS_ARB */
    bool IsES;              /**< True if this shader uses GLSL ES */
 
    GLuint SourceChecksum;       /**< for debug/logging purposes */
@@ -2740,6 +2741,7 @@ struct gl_shader_program
 
    GLboolean LinkStatus;   /**< GL_LINK_STATUS */
    GLboolean Validated;
+   GLboolean Compiling;    /**< !GL_COMPLETION_STATUS_ARB */
    GLboolean _Used;        /**< Ever used for drawing? */
    GLboolean SamplersValidated; /**< Samplers validated against texture units? */
    GLchar *InfoLog;
@@ -3687,6 +3689,7 @@ struct gl_extensions
    GLboolean ARB_map_buffer_range;
    GLboolean ARB_occlusion_query;
    GLboolean ARB_occlusion_query2;
+   GLboolean ARB_parallel_shader_compile;
    GLboolean ARB_pipeline_statistics_query;
    GLboolean ARB_point_sprite;
    GLboolean ARB_sample_shading;
@@ -4296,6 +4299,7 @@ struct gl_context
 
    struct gl_pipeline_shader_state Pipeline; /**< GLSL pipeline shader object state */
    struct gl_pipeline_object Shader; /**< GLSL shader object state */
+   GLuint MaxShaderCompilerThreads;
 
    /**
     * Current active shader pipeline state

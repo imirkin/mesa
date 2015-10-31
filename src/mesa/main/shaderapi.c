@@ -816,6 +816,12 @@ get_programiv(struct gl_context *ctx, GLuint program, GLenum pname,
       if (check_tes_query(ctx, shProg))
          *params = shProg->TessEval.PointMode;
       return;
+
+   case GL_COMPLETION_STATUS_ARB:
+      if (!ctx->Extensions.ARB_parallel_shader_compile)
+         break;
+      *params = !shProg->Compiling;
+      return;
    default:
       break;
    }
@@ -854,6 +860,12 @@ get_shaderiv(struct gl_context *ctx, GLuint name, GLenum pname, GLint *params)
    case GL_SHADER_SOURCE_LENGTH:
       *params = shader->Source ? strlen((char *) shader->Source) + 1 : 0;
       break;
+   case GL_COMPLETION_STATUS_ARB:
+      if (ctx->Extensions.ARB_parallel_shader_compile) {
+         *params = !shader->Compiling;
+         break;
+      }
+      /* fallthrough */
    default:
       _mesa_error(ctx, GL_INVALID_ENUM, "glGetShaderiv(pname)");
       return;
@@ -2754,5 +2766,12 @@ _mesa_shader_program_init_subroutine_defaults(struct gl_shader_program *shProg)
 void GLAPIENTRY
 _mesa_MaxShaderCompilerThreadsARB(GLuint count)
 {
+   GET_CURRENT_CONTEXT(ctx);
 
+   if (!ctx->Extensions.ARB_parallel_shader_compile) {
+      _mesa_error(ctx, GL_INVALID_OPERATION, "glMaxShaderCompilerThreadsARB");
+      return;
+   }
+
+   ctx->MaxShaderCompilerThreads = count;
 }

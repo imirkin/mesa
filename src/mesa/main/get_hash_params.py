@@ -838,6 +838,9 @@ descriptor=[
   [ "MAX_GEOMETRY_SHADER_STORAGE_BLOCKS", "CONTEXT_INT(Const.Program[MESA_SHADER_FRAGMENT].MaxShaderStorageBlocks), extra_ARB_shader_storage_buffer_object" ],
   [ "MAX_TESS_CONTROL_SHADER_STORAGE_BLOCKS", "CONTEXT_INT(Const.Program[MESA_SHADER_TESS_CTRL].MaxShaderStorageBlocks), extra_ARB_shader_storage_buffer_object" ],
   [ "MAX_TESS_EVALUATION_SHADER_STORAGE_BLOCKS", "CONTEXT_INT(Const.Program[MESA_SHADER_TESS_EVAL].MaxShaderStorageBlocks), extra_ARB_shader_storage_buffer_object" ],
+
+# GL_ARB_parallel_shader_compile
+  [ "MAX_SHADER_COMPILER_THREADS_ARB", "CONTEXT_INT(MaxShaderCompilerThreads), extra_ARB_parallel_shader_compile" ],
 ]},
 
 # Enums restricted to OpenGL Core profile

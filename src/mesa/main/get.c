@@ -424,6 +424,7 @@ EXTRA_EXT(ARB_framebuffer_no_attachments);
 EXTRA_EXT(ARB_tessellation_shader);
 EXTRA_EXT(ARB_shader_subroutine);
 EXTRA_EXT(ARB_shader_storage_buffer_object);
+EXTRA_EXT(ARB_parallel_shader_compile);
 
 static const int
 extra_ARB_color_buffer_float_or_glcore[] = {

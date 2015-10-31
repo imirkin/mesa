@@ -1250,6 +1250,7 @@ _mesa_initialize_context(struct gl_context *ctx,
    }
 
    ctx->FirstTimeCurrent = GL_TRUE;
+   ctx->MaxShaderCompilerThreads = 0xFFFFFFFF;
 
    return GL_TRUE;
 
