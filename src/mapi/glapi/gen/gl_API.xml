@@ -8274,6 +8274,18 @@
 <!-- ARB extension 171 -->
 <xi:include href="ARB_pipeline_statistics_query.xml" xmlns:xi="http://www.w3.org/2001/XInclude"/>
 
+<!-- ARB extensions 172 - 178 -->
+
+<category name="GL_ARB_parallel_shader_compile" number="179">
+    <enum name="MAX_SHADER_COMPILER_THREADS_ARB" count="1" value="0x91B0">
+        <size name="Get" mode="get"/>
+    </enum>
+    <enum name="COMPLETION_STATUS_ARB"                    value="0x91B1"/>
+    <function name="MaxShaderCompilerThreadsARB">
+        <param name="count"  type="GLuint"/>
+    </function>
+</category>
+
 <!-- Non-ARB extensions sorted by extension number. -->
 
 <category name="GL_EXT_blend_color" number="2">

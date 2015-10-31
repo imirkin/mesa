@@ -2750,3 +2750,9 @@ _mesa_shader_program_init_subroutine_defaults(struct gl_shader_program *shProg)
       _mesa_shader_init_subroutine_defaults(shProg->_LinkedShaders[i]);
    }
 }
+
+void GLAPIENTRY
+_mesa_MaxShaderCompilerThreadsARB(GLuint count)
+{
+
+}

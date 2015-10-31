@@ -313,6 +313,10 @@ extern GLvoid GLAPIENTRY
 _mesa_GetProgramStageiv(GLuint program, GLenum shadertype,
                         GLenum pname, GLint *values);
 
+/* GL_ARB_parallel_shader_pipeline */
+extern GLvoid GLAPIENTRY
+_mesa_MaxShaderCompilerThreadsARB(GLuint count);
+
 #ifdef __cplusplus
 }
 #endif

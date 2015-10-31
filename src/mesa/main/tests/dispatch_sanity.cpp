@@ -940,6 +940,9 @@ const struct function common_desktop_functions_possible[] = {
    { "glGetTextureSubImage", 20, -1 },
    { "glGetCompressedTextureSubImage", 20, -1 },
 
+   /* GL_ARB_parallel_shader_compile */
+   { "glMaxShaderCompilerThreadsARB", 12, -1 },
+
    { NULL, 0, -1 }
 };
 
