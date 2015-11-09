@@ -275,14 +275,14 @@ fd3_program_emit(struct fd_ringbuffer *ring, struct fd3_emit *emit,
 		if (j < fp->inputs_count) {
 			k = ir3_find_output(vp, fp->inputs[j].slot);
 			reg |= A3XX_SP_VS_OUT_REG_A_REGID(vp->outputs[k].regid);
-			reg |= A3XX_SP_VS_OUT_REG_A_COMPMASK(fp->inputs[j].compmask);
+			reg |= A3XX_SP_VS_OUT_REG_A_COMPMASK(0xf); //fp->inputs[j].compmask);
 		}
 
 		j = ir3_next_varying(fp, j);
 		if (j < fp->inputs_count) {
 			k = ir3_find_output(vp, fp->inputs[j].slot);
 			reg |= A3XX_SP_VS_OUT_REG_B_REGID(vp->outputs[k].regid);
-			reg |= A3XX_SP_VS_OUT_REG_B_COMPMASK(fp->inputs[j].compmask);
+			reg |= A3XX_SP_VS_OUT_REG_B_COMPMASK(0xf); //fp->inputs[j].compmask);
 		}
 
 		OUT_RING(ring, reg);
