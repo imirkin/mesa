@@ -319,6 +319,7 @@ nvc0_clear_render_target(struct pipe_context *pipe,
       PUSH_DATA(push, dst->u.tex.first_layer + sf->depth);
       PUSH_DATA(push, mt->layer_stride >> 2);
       PUSH_DATA(push, dst->u.tex.first_layer);
+      IMMED_NVC0(push, NVC0_3D(MULTISAMPLE_MODE), mt->ms_mode);
    } else {
       if (res->base.target == PIPE_BUFFER) {
          PUSH_DATA(push, 262144);
@@ -334,13 +335,14 @@ nvc0_clear_render_target(struct pipe_context *pipe,
       PUSH_DATA(push, 0);
 
       IMMED_NVC0(push, NVC0_3D(ZETA_ENABLE), 0);
+      IMMED_NVC0(push, NVC0_3D(MULTISAMPLE_MODE), 0);
 
       /* tiled textures don't have to be fenced, they're not mapped directly */
       nvc0_resource_fence(res, NOUVEAU_BO_WR);
    }
 
    BEGIN_NIC0(push, NVC0_3D(CLEAR_BUFFERS), sf->depth);
-   for (z = 0; z < sf->depth; ++z) {
+   for (z = dst->u.tex.first_layer; z <= dst->u.tex.last_layer; ++z) {
       PUSH_DATA (push, 0x3c |
                  (z << NVC0_3D_CLEAR_BUFFERS_LAYER__SHIFT));
    }
@@ -466,6 +468,7 @@ nvc0_clear_buffer(struct pipe_context *pipe,
    PUSH_DATA (push, 0);
 
    IMMED_NVC0(push, NVC0_3D(ZETA_ENABLE), 0);
+   IMMED_NVC0(push, NVC0_3D(MULTISAMPLE_MODE), 0);
 
    IMMED_NVC0(push, NVC0_3D(CLEAR_BUFFERS), 0x3c);
 
@@ -540,14 +543,93 @@ nvc0_clear_depth_stencil(struct pipe_context *pipe,
    PUSH_DATA (push, (unk << 16) | (dst->u.tex.first_layer + sf->depth));
    BEGIN_NVC0(push, NVC0_3D(ZETA_BASE_LAYER), 1);
    PUSH_DATA (push, dst->u.tex.first_layer);
+   IMMED_NVC0(push, NVC0_3D(MULTISAMPLE_MODE), mt->ms_mode);
 
    BEGIN_NIC0(push, NVC0_3D(CLEAR_BUFFERS), sf->depth);
-   for (z = 0; z < sf->depth; ++z) {
+   for (z = dst->u.tex.first_layer; z <= dst->u.tex.last_layer; ++z) {
       PUSH_DATA (push, mode |
                  (z << NVC0_3D_CLEAR_BUFFERS_LAYER__SHIFT));
    }
 
    nvc0->dirty |= NVC0_NEW_FRAMEBUFFER;
+}
+
+static void
+nvc0_clear_texture(struct pipe_context *pipe,
+                   struct pipe_resource *res,
+                   unsigned level,
+                   const struct pipe_box *box,
+                   const void *data)
+{
+   struct nv50_miptree *mt = nv50_miptree(res);
+   struct nv50_surface sf = {{{0}}};
+
+   assert(res->target != PIPE_BUFFER);
+
+   sf.base.texture = res;
+   sf.base.format = res->format;
+   sf.base.u.tex.first_layer = box->z;
+   sf.base.u.tex.last_layer = box->z + box->depth - 1;
+   sf.base.u.tex.level = level;
+   sf.base.width = sf.width = res->width0 << mt->ms_x;
+   sf.base.height = sf.height = res->height0 << mt->ms_y;
+   sf.depth = box->depth;
+   sf.offset = mt->level[level].offset;
+
+   if (util_format_is_depth_or_stencil(res->format)) {
+      float depth = 0;
+      uint8_t stencil = 0;
+      unsigned clear = 0;
+      const struct util_format_description *desc =
+         util_format_description(res->format);
+
+      if (util_format_has_depth(desc)) {
+         clear |= PIPE_CLEAR_DEPTH;
+         desc->unpack_z_float(&depth, 0, data, 0, 1, 1);
+      }
+      if (util_format_has_stencil(desc)) {
+         clear |= PIPE_CLEAR_STENCIL;
+         desc->unpack_s_8uint(&stencil, 0, data, 0, 1, 1);
+      }
+      nvc0_clear_depth_stencil(pipe, &sf.base, clear, depth, stencil,
+                               box->x, box->y, box->width, box->height);
+   } else {
+      union pipe_color_union color;
+
+      switch (util_format_get_blocksizebits(res->format)) {
+      case 128:
+         sf.base.format = PIPE_FORMAT_R32G32B32A32_UINT;
+         memcpy(&color.ui, data, 128 / 8);
+         break;
+      case 64:
+         sf.base.format = PIPE_FORMAT_R32G32_UINT;
+         memcpy(&color.ui, data, 64 / 8);
+         memset(&color.ui[2], 0, 64 / 8);
+         break;
+      case 32:
+         sf.base.format = PIPE_FORMAT_R32_UINT;
+         memcpy(&color.ui, data, 32 / 8);
+         memset(&color.ui[1], 0, 96 / 8);
+         break;
+      case 16:
+         sf.base.format = PIPE_FORMAT_R16_UINT;
+         color.ui[0] = util_cpu_to_le32(
+            util_le16_to_cpu(*(unsigned short *)data));
+         memset(&color.ui[1], 0, 96 / 8);
+         break;
+      case 8:
+         sf.base.format = PIPE_FORMAT_R8_UINT;
+         color.ui[0] = util_cpu_to_le32(*(unsigned char *)data);
+         memset(&color.ui[1], 0, 96 / 8);
+         break;
+      default:
+         assert(!"Unknown texel element size");
+         return;
+      }
+
+      nvc0_clear_render_target(pipe, &sf.base, &color,
+                               box->x, box->y, box->width, box->height);
+   }
 }
 
 void
@@ -1541,5 +1623,6 @@ nvc0_init_surface_functions(struct nvc0_context *nvc0)
    pipe->flush_resource = nvc0_flush_resource;
    pipe->clear_render_target = nvc0_clear_render_target;
    pipe->clear_depth_stencil = nvc0_clear_depth_stencil;
+   pipe->clear_texture = nvc0_clear_texture;
    pipe->clear_buffer = nvc0_clear_buffer;
 }
