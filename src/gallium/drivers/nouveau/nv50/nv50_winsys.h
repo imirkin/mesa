@@ -98,7 +98,10 @@ static inline void
 BEGIN_NV04(struct nouveau_pushbuf *push, int subc, int mthd, unsigned size)
 {
 #ifndef NV50_PUSH_EXPLICIT_SPACE_CHECKING
-   PUSH_SPACE(push, size + 1);
+   bool success = PUSH_SPACE(push, size + 1);
+   assert(success);
+#else
+   assert(PUSH_AVAIL(push) >= size + 1);
 #endif
    PUSH_DATA (push, NV50_FIFO_PKHDR(subc, mthd, size));
 }
@@ -107,7 +110,10 @@ static inline void
 BEGIN_NI04(struct nouveau_pushbuf *push, int subc, int mthd, unsigned size)
 {
 #ifndef NV50_PUSH_EXPLICIT_SPACE_CHECKING
-   PUSH_SPACE(push, size + 1);
+   bool success = PUSH_SPACE(push, size + 1);
+   assert(success);
+#else
+   assert(PUSH_AVAIL(push) >= size + 1);
 #endif
    PUSH_DATA (push, NV50_FIFO_PKHDR_NI(subc, mthd, size));
 }
@@ -117,7 +123,10 @@ static inline void
 BEGIN_NL50(struct nouveau_pushbuf *push, int subc, int mthd, uint32_t size)
 {
 #ifndef NV50_PUSH_EXPLICIT_SPACE_CHECKING
-   PUSH_SPACE(push, 2);
+   bool success = PUSH_SPACE(push, 2);
+   assert(success);
+#else
+   assert(PUSH_AVAIL(push) >= 2);
 #endif
    PUSH_DATA (push, NV50_FIFO_PKHDR_L(subc, mthd));
    PUSH_DATA (push, size);

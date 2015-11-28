@@ -113,7 +113,10 @@ static inline void
 BEGIN_NVC0(struct nouveau_pushbuf *push, int subc, int mthd, unsigned size)
 {
 #ifndef NVC0_PUSH_EXPLICIT_SPACE_CHECKING
-   PUSH_SPACE(push, size + 1);
+   bool success = PUSH_SPACE(push, size + 1);
+   assert(success);
+#else
+   assert(PUSH_AVAIL(push) >= size + 1);
 #endif
    PUSH_DATA (push, NVC0_FIFO_PKHDR_SQ(subc, mthd, size));
 }
@@ -122,7 +125,10 @@ static inline void
 BEGIN_NIC0(struct nouveau_pushbuf *push, int subc, int mthd, unsigned size)
 {
 #ifndef NVC0_PUSH_EXPLICIT_SPACE_CHECKING
-   PUSH_SPACE(push, size + 1);
+   bool success = PUSH_SPACE(push, size + 1);
+   assert(success);
+#else
+   assert(PUSH_AVAIL(push) >= size + 1);
 #endif
    PUSH_DATA (push, NVC0_FIFO_PKHDR_NI(subc, mthd, size));
 }
@@ -131,7 +137,10 @@ static inline void
 BEGIN_1IC0(struct nouveau_pushbuf *push, int subc, int mthd, unsigned size)
 {
 #ifndef NVC0_PUSH_EXPLICIT_SPACE_CHECKING
-   PUSH_SPACE(push, size + 1);
+   bool success = PUSH_SPACE(push, size + 1);
+   assert(success);
+#else
+   assert(PUSH_AVAIL(push) >= size + 1);
 #endif
    PUSH_DATA (push, NVC0_FIFO_PKHDR_1I(subc, mthd, size));
 }
@@ -140,7 +149,10 @@ static inline void
 IMMED_NVC0(struct nouveau_pushbuf *push, int subc, int mthd, uint16_t data)
 {
 #ifndef NVC0_PUSH_EXPLICIT_SPACE_CHECKING
-   PUSH_SPACE(push, 1);
+   bool success = PUSH_SPACE(push, 1);
+   assert(success);
+#else
+   assert(PUSH_AVAIL(push) >= 1);
 #endif
    PUSH_DATA (push, NVC0_FIFO_PKHDR_IL(subc, mthd, data));
 }
