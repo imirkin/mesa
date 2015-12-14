@@ -59,6 +59,14 @@ static int convert_fourcc(int format, int *dri_components_p)
       format = __DRI_IMAGE_FORMAT_RGB565;
       dri_components = __DRI_IMAGE_COMPONENTS_RGB;
       break;
+   case __DRI_IMAGE_FOURCC_R8:
+      format = __DRI_IMAGE_FORMAT_R8;
+      dri_components = __DRI_IMAGE_COMPONENTS_R;
+      break;
+   case __DRI_IMAGE_FOURCC_GR88:
+      format = __DRI_IMAGE_FORMAT_GR88;
+      dri_components = __DRI_IMAGE_COMPONENTS_RG;
+      break;
    case __DRI_IMAGE_FOURCC_ARGB8888:
       format = __DRI_IMAGE_FORMAT_ARGB8888;
       dri_components = __DRI_IMAGE_COMPONENTS_RGBA;
@@ -88,6 +96,12 @@ static int convert_to_fourcc(int format)
    case __DRI_IMAGE_FORMAT_RGB565:
       format = __DRI_IMAGE_FOURCC_RGB565;
       break;
+   case __DRI_IMAGE_FORMAT_R8:
+      format = __DRI_IMAGE_FOURCC_R8;
+      break;
+   case __DRI_IMAGE_FORMAT_GR88:
+      format = __DRI_IMAGE_FOURCC_GR88;
+      break;
    case __DRI_IMAGE_FORMAT_ARGB8888:
       format = __DRI_IMAGE_FOURCC_ARGB8888;
       break;
@@ -113,6 +127,12 @@ static enum pipe_format dri2_format_to_pipe_format (int format)
    switch (format) {
    case __DRI_IMAGE_FORMAT_RGB565:
       pf = PIPE_FORMAT_B5G6R5_UNORM;
+      break;
+   case __DRI_IMAGE_FORMAT_R8:
+      pf = PIPE_FORMAT_R8_UNORM;
+      break;
+   case __DRI_IMAGE_FORMAT_GR88:
+      pf = PIPE_FORMAT_R8G8_UNORM;
       break;
    case __DRI_IMAGE_FORMAT_XRGB8888:
       pf = PIPE_FORMAT_BGRX8888_UNORM;
