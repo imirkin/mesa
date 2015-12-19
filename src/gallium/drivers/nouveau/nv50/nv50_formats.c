@@ -84,6 +84,29 @@
 #define NV50_TIC_0_FMT_BPTC_FLOAT   NVC0_TIC_0_FMT_BPTC_FLOAT
 #define NV50_TIC_0_FMT_BPTC_UFLOAT  NVC0_TIC_0_FMT_BPTC_UFLOAT
 
+/* GK20A and GM107+ formats */
+#define NV50_TIC_0_FMT_ETC2_RGB      0x06
+#define NV50_TIC_0_FMT_ETC2_RGBA1    0x0a
+#define NV50_TIC_0_FMT_ETC2_RGBA     0x0b
+#define NV50_TIC_0_FMT_ETC2_R11      0x19
+#define NV50_TIC_0_FMT_ETC2_RG11     0x1a
+
+/* On GK20A, the high bit goes elsewhere */
+#define NV50_TIC_0_FMT_ASTC_2D_4X4   0x40
+#define NV50_TIC_0_FMT_ASTC_2D_5X4   0x50
+#define NV50_TIC_0_FMT_ASTC_2D_5X5   0x41
+#define NV50_TIC_0_FMT_ASTC_2D_6X5   0x51
+#define NV50_TIC_0_FMT_ASTC_2D_6X6   0x42
+#define NV50_TIC_0_FMT_ASTC_2D_8X5   0x55
+#define NV50_TIC_0_FMT_ASTC_2D_8X6   0x52
+#define NV50_TIC_0_FMT_ASTC_2D_8X8   0x44
+#define NV50_TIC_0_FMT_ASTC_2D_10X5  0x56
+#define NV50_TIC_0_FMT_ASTC_2D_10X6  0x57
+#define NV50_TIC_0_FMT_ASTC_2D_10X8  0x53
+#define NV50_TIC_0_FMT_ASTC_2D_10X10 0x45
+#define NV50_TIC_0_FMT_ASTC_2D_12X10 0x54
+#define NV50_TIC_0_FMT_ASTC_2D_12X12 0x46
+
 #if NOUVEAU_DRIVER == 0xc0
 # define NVXX_3D_VAF_SIZE(s) NVC0_3D_VERTEX_ATTRIB_FORMAT_SIZE_##s
 # define NVXX_3D_VAF_TYPE(t) NVC0_3D_VERTEX_ATTRIB_FORMAT_TYPE_##t
@@ -91,6 +114,11 @@
 # define NVXX_3D_VAF_SIZE(s) NV50_3D_VERTEX_ARRAY_ATTRIB_FORMAT_##s
 # define NVXX_3D_VAF_TYPE(t) NV50_3D_VERTEX_ARRAY_ATTRIB_TYPE_##t
 #endif
+
+/* GK20A ASTC formats put their high bit into bit 31 */
+#define V1_FORMAT(fmt)          \
+   ((fmt) & 0x3f) |             \
+   (((fmt) & 0x40) << (31 - 6))
 
 #define TBLENT_A_(pf, sf, r, g, b, a, t0, t1, t2, t3, sz, u, br)        \
    [PIPE_FORMAT_##pf] = {                                               \
@@ -103,7 +131,7 @@
       (NV50_TIC_TYPE_##t1 << NV50_TIC_0_TYPE1__SHIFT) |                 \
       (NV50_TIC_TYPE_##t2 << NV50_TIC_0_TYPE2__SHIFT) |                 \
       (NV50_TIC_TYPE_##t3 << NV50_TIC_0_TYPE3__SHIFT) |                 \
-      NV50_TIC_0_FMT_##sz,                                              \
+      V1_FORMAT(NV50_TIC_0_FMT_##sz),                                   \
       NVXX_3D_VAF_SIZE(sz) |                                            \
       NVXX_3D_VAF_TYPE(t0) | (br << 31),                                \
       U_##u                                                             \
@@ -120,7 +148,7 @@
       (NV50_TIC_TYPE_##t1 << NV50_TIC_0_TYPE1__SHIFT) |                 \
       (NV50_TIC_TYPE_##t2 << NV50_TIC_0_TYPE2__SHIFT) |                 \
       (NV50_TIC_TYPE_##t3 << NV50_TIC_0_TYPE3__SHIFT) |                 \
-      NV50_TIC_0_FMT_##sz, 0, U_##u                                     \
+      V1_FORMAT(NV50_TIC_0_FMT_##sz), 0, U_##u                          \
    }
 
 #define C4A(p, n, r, g, b, a, t, s, u, br)                              \
@@ -295,6 +323,47 @@ const struct nv50_format nv50_format_table[PIPE_FORMAT_COUNT] =
    C4B(BPTC_SRGBA,      NONE, C0, C1, C2, C3, UNORM, BPTC, t),
    F3B(BPTC_RGB_FLOAT,  NONE, C0, C1, C2, xx, FLOAT, BPTC_FLOAT, t),
    F3B(BPTC_RGB_UFLOAT, NONE, C0, C1, C2, xx, FLOAT, BPTC_UFLOAT, t),
+
+   F3B(ETC2_RGB8,       NONE, C0, C1, C2, xx, UNORM, ETC2_RGB,   t),
+   F3B(ETC2_SRGB8,      NONE, C0, C1, C2, xx, UNORM, ETC2_RGB,   t),
+   C4B(ETC2_RGB8A1,     NONE, C0, C1, C2, C3, UNORM, ETC2_RGBA1, t),
+   C4B(ETC2_SRGB8A1,    NONE, C0, C1, C2, C3, UNORM, ETC2_RGBA1, t),
+   C4B(ETC2_RGBA8,      NONE, C0, C1, C2, C3, UNORM, ETC2_RGBA,  t),
+   C4B(ETC2_SRGBA8,     NONE, C0, C1, C2, C3, UNORM, ETC2_RGBA,  t),
+   F1B(ETC2_R11_UNORM,  NONE, C0, xx, xx, xx, UNORM, ETC2_R11,   t),
+   F1B(ETC2_R11_SNORM,  NONE, C0, xx, xx, xx, SNORM, ETC2_R11,   t),
+   F2B(ETC2_RG11_UNORM, NONE, C0, C1, xx, xx, UNORM, ETC2_RG11,  t),
+   F2B(ETC2_RG11_SNORM, NONE, C0, C1, xx, xx, SNORM, ETC2_RG11,  t),
+
+   C4B(ASTC_4x4,        NONE, C0, C1, C2, C3, UNORM, ASTC_2D_4X4,   t),
+   C4B(ASTC_5x4,        NONE, C0, C1, C2, C3, UNORM, ASTC_2D_5X4,   t),
+   C4B(ASTC_5x5,        NONE, C0, C1, C2, C3, UNORM, ASTC_2D_5X5,   t),
+   C4B(ASTC_6x5,        NONE, C0, C1, C2, C3, UNORM, ASTC_2D_6X5,   t),
+   C4B(ASTC_6x6,        NONE, C0, C1, C2, C3, UNORM, ASTC_2D_6X6,   t),
+   C4B(ASTC_8x5,        NONE, C0, C1, C2, C3, UNORM, ASTC_2D_8X5,   t),
+   C4B(ASTC_8x6,        NONE, C0, C1, C2, C3, UNORM, ASTC_2D_8X6,   t),
+   C4B(ASTC_8x8,        NONE, C0, C1, C2, C3, UNORM, ASTC_2D_8X8,   t),
+   C4B(ASTC_10x5,       NONE, C0, C1, C2, C3, UNORM, ASTC_2D_10X5,  t),
+   C4B(ASTC_10x6,       NONE, C0, C1, C2, C3, UNORM, ASTC_2D_10X6,  t),
+   C4B(ASTC_10x8,       NONE, C0, C1, C2, C3, UNORM, ASTC_2D_10X8,  t),
+   C4B(ASTC_10x10,      NONE, C0, C1, C2, C3, UNORM, ASTC_2D_10X10, t),
+   C4B(ASTC_12x10,      NONE, C0, C1, C2, C3, UNORM, ASTC_2D_12X10, t),
+   C4B(ASTC_12x12,      NONE, C0, C1, C2, C3, UNORM, ASTC_2D_12X12, t),
+
+   C4B(ASTC_4x4_SRGB,   NONE, C0, C1, C2, C3, UNORM, ASTC_2D_4X4,   t),
+   C4B(ASTC_5x4_SRGB,   NONE, C0, C1, C2, C3, UNORM, ASTC_2D_5X4,   t),
+   C4B(ASTC_5x5_SRGB,   NONE, C0, C1, C2, C3, UNORM, ASTC_2D_5X5,   t),
+   C4B(ASTC_6x5_SRGB,   NONE, C0, C1, C2, C3, UNORM, ASTC_2D_6X5,   t),
+   C4B(ASTC_6x6_SRGB,   NONE, C0, C1, C2, C3, UNORM, ASTC_2D_6X6,   t),
+   C4B(ASTC_8x5_SRGB,   NONE, C0, C1, C2, C3, UNORM, ASTC_2D_8X5,   t),
+   C4B(ASTC_8x6_SRGB,   NONE, C0, C1, C2, C3, UNORM, ASTC_2D_8X6,   t),
+   C4B(ASTC_8x8_SRGB,   NONE, C0, C1, C2, C3, UNORM, ASTC_2D_8X8,   t),
+   C4B(ASTC_10x5_SRGB,  NONE, C0, C1, C2, C3, UNORM, ASTC_2D_10X5,  t),
+   C4B(ASTC_10x6_SRGB,  NONE, C0, C1, C2, C3, UNORM, ASTC_2D_10X6,  t),
+   C4B(ASTC_10x8_SRGB,  NONE, C0, C1, C2, C3, UNORM, ASTC_2D_10X8,  t),
+   C4B(ASTC_10x10_SRGB, NONE, C0, C1, C2, C3, UNORM, ASTC_2D_10X10, t),
+   C4B(ASTC_12x10_SRGB, NONE, C0, C1, C2, C3, UNORM, ASTC_2D_12X10, t),
+   C4B(ASTC_12x12_SRGB, NONE, C0, C1, C2, C3, UNORM, ASTC_2D_12X12, t),
 
    C4A(R32G32B32A32_FLOAT, RGBA32_FLOAT, C0, C1, C2, C3, FLOAT, 32_32_32_32,
        IBV, 0),

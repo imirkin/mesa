@@ -44,6 +44,7 @@ nvc0_screen_is_format_supported(struct pipe_screen *pscreen,
                                 unsigned sample_count,
                                 unsigned bindings)
 {
+   const struct util_format_description *desc = util_format_description(format);
    if (sample_count > 8)
       return false;
    if (!(0x117 & (1 << sample_count))) /* 0, 1, 2, 4 or 8 */
@@ -55,6 +56,15 @@ nvc0_screen_is_format_supported(struct pipe_screen *pscreen,
    if ((bindings & PIPE_BIND_SAMPLER_VIEW) && (target != PIPE_BUFFER))
       if (util_format_get_blocksizebits(format) == 3 * 32)
          return false;
+
+   /* Restrict ETC2 and ASTC formats here. These are only supported on GM107+
+    * and GK20A.
+    */
+   if ((desc->layout == UTIL_FORMAT_LAYOUT_ETC ||
+        desc->layout == UTIL_FORMAT_LAYOUT_ASTC) &&
+       nouveau_screen(pscreen)->class_3d < GM107_3D_CLASS &&
+       nouveau_screen(pscreen)->class_3d != NVEA_3D_CLASS)
+      return false;
 
    /* transfers & shared are always supported */
    bindings &= ~(PIPE_BIND_TRANSFER_READ |
