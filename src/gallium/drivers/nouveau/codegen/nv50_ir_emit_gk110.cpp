@@ -485,24 +485,33 @@ CodeEmitterGK110::emitNOP(const Instruction *i)
 void
 CodeEmitterGK110::emitFMAD(const Instruction *i)
 {
-   assert(!isLIMM(i->src(1), TYPE_F32));
-
-   emitForm_21(i, 0x0c0, 0x940);
-
-   NEG_(34, 2);
-   SAT_(35);
-   RND_(36, F);
-   FTZ_(38);
-   DNZ_(39);
-
    bool neg1 = (i->src(0).mod ^ i->src(1).mod).neg();
 
-   if (code[0] & 0x1) {
+   if (isLIMM(i->src(1), TYPE_F32)) {
+      emitForm_L(i, 0x600, 0x0, Modifier(0));
+
+      FTZ_(38);
+      DNZ_(39);
+      SAT_(3a);
       if (neg1)
          code[1] ^= 1 << 27;
-   } else
-   if (neg1) {
-      code[1] |= 1 << 19;
+      NEG_(3c, 2);
+   } else {
+      emitForm_21(i, 0x0c0, 0x940);
+
+      NEG_(34, 2);
+      SAT_(35);
+      RND_(36, F);
+      FTZ_(38);
+      DNZ_(39);
+
+      if (code[0] & 0x1) {
+         if (neg1)
+            code[1] ^= 1 << 27;
+      } else
+      if (neg1) {
+         code[1] |= 1 << 19;
+      }
    }
 }
 
