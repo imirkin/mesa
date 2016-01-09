@@ -339,6 +339,8 @@ nvc0_screen_get_shader_param(struct pipe_screen *pscreen, unsigned shader,
    case PIPE_SHADER_CAP_MAX_UNROLL_ITERATIONS_HINT:
       return 32;
    case PIPE_SHADER_CAP_MAX_SHADER_IMAGES:
+      if (shader == PIPE_SHADER_FRAGMENT && class_3d < NVE4_3D_CLASS)
+         return 8;
       return 0;
    default:
       NOUVEAU_ERR("unknown PIPE_SHADER_CAP %d\n", param);
