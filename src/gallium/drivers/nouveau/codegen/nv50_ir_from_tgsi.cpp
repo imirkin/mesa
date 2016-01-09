@@ -373,6 +373,7 @@ static nv50_ir::DataFile translateFile(uint file)
    case TGSI_FILE_PREDICATE:       return nv50_ir::FILE_PREDICATE;
    case TGSI_FILE_IMMEDIATE:       return nv50_ir::FILE_IMMEDIATE;
    case TGSI_FILE_SYSTEM_VALUE:    return nv50_ir::FILE_SYSTEM_VALUE;
+   case TGSI_FILE_IMAGE:
    case TGSI_FILE_BUFFER:          return nv50_ir::FILE_MEMORY_GLOBAL;
    case TGSI_FILE_SAMPLER:
    case TGSI_FILE_NULL:
@@ -855,6 +856,7 @@ public:
       uint8_t target; // TGSI_TEXTURE_*
       bool raw;
       uint8_t slot; // $surface index
+      uint16_t format; // PIPE_FORMAT_*
    };
    std::vector<Resource> resources;
 
@@ -902,7 +904,7 @@ bool Source::scanSource()
    clipVertexOutput = -1;
 
    textureViews.resize(scan.file_max[TGSI_FILE_SAMPLER_VIEW] + 1);
-   //resources.resize(scan.file_max[TGSI_FILE_RESOURCE] + 1);
+   resources.resize(scan.file_max[TGSI_FILE_IMAGE] + 1);
    tempArrayId.resize(scan.file_max[TGSI_FILE_TEMPORARY] + 1);
 
    info->immd.bufSize = 0;
@@ -1200,15 +1202,14 @@ bool Source::scanDeclaration(const struct tgsi_full_declaration *decl)
          }
       }
       break;
-/*
-   case TGSI_FILE_RESOURCE:
+   case TGSI_FILE_IMAGE:
       for (i = first; i <= last; ++i) {
-         resources[i].target = decl->Resource.Resource;
-         resources[i].raw = decl->Resource.Raw;
+         resources[i].target = decl->Image.Resource;
+         resources[i].raw = decl->Image.Raw;
+         resources[i].format = decl->Image.Format;
          resources[i].slot = i;
       }
       break;
-*/
    case TGSI_FILE_SAMPLER_VIEW:
       for (i = first; i <= last; ++i)
          textureViews[i].target = decl->SamplerView.Resource;
@@ -1769,7 +1770,7 @@ Converter::acquireDst(int d, int c)
    int idx = dst.getIndex(0);
    int idx2d = dst.is2D() ? dst.getIndex(1) : 0;
 
-   if (dst.isMasked(c) || f == TGSI_FILE_BUFFER)
+   if (dst.isMasked(c) || f == TGSI_FILE_BUFFER || f == TGSI_FILE_IMAGE)
       return NULL;
 
    if (dst.isIndirect(0) ||
