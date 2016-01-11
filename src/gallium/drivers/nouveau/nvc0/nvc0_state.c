@@ -1230,9 +1230,39 @@ nvc0_set_compute_resources(struct pipe_context *pipe,
 
 static void
 nvc0_set_shader_images(struct pipe_context *pipe, unsigned shader,
-                       unsigned start_slot, unsigned count,
+                       unsigned start, unsigned nr,
                        struct pipe_image_view *views)
 {
+   struct nvc0_context *nvc0 = nvc0_context(pipe);
+   const unsigned s = nvc0_shader_stage(shader);
+   const unsigned end = start + nr;
+   const unsigned mask = ((1 << nr) - 1) << start;
+   unsigned i;
+
+   if (views) {
+      for (i = start; i < end; ++i) {
+         const unsigned p = i - start;
+         pipe_resource_reference(&nvc0->images[s][i].resource, NULL);
+         if (views[p].resource)
+            nvc0->images_valid[s] |= (1 << i);
+         else
+            nvc0->images_valid[s] &= ~(1 << i);
+         nvc0->images[s][i] = views[p];
+      }
+   } else {
+      for (i = start; i < end; ++i)
+         pipe_resource_reference(&nvc0->images[s][i].resource, NULL);
+      nvc0->images_valid[s] &= ~mask;
+   }
+   nvc0->images_dirty[s] |= mask;
+
+   if (s == 5) {
+      nouveau_bufctx_reset(nvc0->bufctx_cp, NVC0_BIND_CP_SUF);
+      nvc0_context(pipe)->dirty_cp |= NVC0_NEW_CP_SURFACES;
+   } else {
+      nouveau_bufctx_reset(nvc0->bufctx_3d, NVC0_BIND_SUF);
+      nvc0_context(pipe)->dirty |= NVC0_NEW_SURFACES;
+   }
 }
 
 static void

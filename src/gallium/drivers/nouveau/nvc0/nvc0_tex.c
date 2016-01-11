@@ -664,7 +664,53 @@ nve4_set_surface_info(struct nouveau_pushbuf *push,
 static inline void
 nvc0_update_surface_bindings(struct nvc0_context *nvc0)
 {
-   /* TODO */
+   struct nouveau_pushbuf *push = nvc0->base.pushbuf;
+
+   for (int i = 0; i < 8; ++i) {
+      struct pipe_image_view *view = &nvc0->images[4][i];
+      BEGIN_NVC0(push, NVC0_3D(IMAGE(i)), 6);
+      if (view->resource) {
+         struct nv04_resource *res = nv04_resource(view->resource);
+         uint64_t address = res->address;
+         unsigned rt = nvc0_format_table[view->format].rt;
+         if (util_format_is_depth_or_stencil(view->format))
+            rt = rt << 12;
+         else
+            rt = (rt << 4) | (0x14 << 12);
+         if (res->base.target == PIPE_BUFFER) {
+            unsigned blocksize = util_format_get_blocksize(view->format);
+            unsigned width = view->u.buf.last_element - view->u.buf.first_element + 1;
+            address += view->u.buf.first_element * blocksize;
+            PUSH_DATAh(push, address);
+            PUSH_DATA (push, address);
+            PUSH_DATA (push, width);
+            PUSH_DATA (push, NVC0_3D_IMAGE_HEIGHT_LINEAR | 1);\
+            PUSH_DATA (push, rt);
+            PUSH_DATA (push, 0);
+         } else {
+            struct nv50_miptree *mt = nv50_miptree(view->resource);
+            address += mt->level[view->u.tex.level].offset;
+            if (mt->layout_3d)
+               address += nvc0_mt_zslice_offset(mt, view->u.tex.level, view->u.tex.first_layer);
+            else
+               address += view->u.tex.first_layer * mt->layer_stride;
+            PUSH_DATAh(push, address);
+            PUSH_DATA (push, address);
+            PUSH_DATA (push, u_minify(view->resource->width0, view->u.tex.level));
+            PUSH_DATA (push, u_minify(view->resource->height0, view->u.tex.level));
+            PUSH_DATA (push, rt);
+            PUSH_DATA (push, mt->level[view->u.tex.level].tile_mode);
+         }
+         BCTX_REFN(nvc0->bufctx_3d, SUF, res, RDWR);
+      } else {
+         PUSH_DATA(push, 0);
+         PUSH_DATA(push, 0);
+         PUSH_DATA(push, 0);
+         PUSH_DATA(push, 0);
+         PUSH_DATA(push, 0x14000);
+         PUSH_DATA(push, 0);
+      }
+   }
 }
 
 static inline void
