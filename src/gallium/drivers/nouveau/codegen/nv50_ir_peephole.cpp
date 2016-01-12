@@ -3064,7 +3064,7 @@ bool
 GlobalCSE::visit(BasicBlock *bb)
 {
    Instruction *phi, *next, *ik;
-   int s;
+   int s, d;
 
    // TODO: maybe do this with OP_UNION, too
 
@@ -3084,13 +3084,18 @@ GlobalCSE::visit(BasicBlock *bb)
       }
       if (!phi->srcExists(s)) {
          Instruction *entry = bb->getEntry();
-         ik->bb->remove(ik);
-         if (!entry || entry->op != OP_JOIN)
-            bb->insertHead(ik);
-         else
-            bb->insertAfter(entry, ik);
-         ik->setDef(0, phi->getDef(0));
-         delete_Instruction(prog, phi);
+         for (d = 0; ik->defExists(d); ++d)
+            if (ik->getDef(d) == phi->getSrc(0))
+               break;
+         if (ik->defExists(d)) {
+            ik->bb->remove(ik);
+            if (!entry || entry->op != OP_JOIN)
+               bb->insertHead(ik);
+            else
+               bb->insertAfter(entry, ik);
+            ik->setDef(d, phi->getDef(0));
+            delete_Instruction(prog, phi);
+         }
       }
    }
 
