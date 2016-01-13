@@ -4102,12 +4102,14 @@ glsl_to_tgsi_visitor::copy_propagate(void)
 int
 glsl_to_tgsi_visitor::eliminate_dead_code(void)
 {
+   int removed = 0;
+
+#if 0
    glsl_to_tgsi_instruction **writes = rzalloc_array(mem_ctx,
                                                      glsl_to_tgsi_instruction *,
                                                      this->next_temp * 4);
    int *write_level = rzalloc_array(mem_ctx, int, this->next_temp * 4);
    int level = 0;
-   int removed = 0;
 
    foreach_in_list(glsl_to_tgsi_instruction, inst, &this->instructions) {
       assert(inst->dst[0].file != PROGRAM_TEMPORARY
@@ -4227,7 +4229,7 @@ glsl_to_tgsi_visitor::eliminate_dead_code(void)
             inst->dead_mask |= (1 << c);
       }
    }
-
+#endif
    /* Now actually remove the instructions that are completely dead and update
     * the writemask of other instructions with dead channels.
     */
@@ -4247,9 +4249,10 @@ glsl_to_tgsi_visitor::eliminate_dead_code(void)
             inst->dst[0].writemask &= ~(inst->dead_mask);
       }
    }
-
+#if 0
    ralloc_free(write_level);
    ralloc_free(writes);
+#endif
 
    return removed;
 }
@@ -5666,7 +5669,8 @@ get_mesa_program(struct gl_context *ctx,
        shader->Type != GL_TESS_EVALUATION_SHADER)
       v->copy_propagate();
 
-   while (v->eliminate_dead_code());
+   v->eliminate_dead_code();
+   //while (v->eliminate_dead_code());
 
    v->merge_two_dsts();
    v->merge_registers();
