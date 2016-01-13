@@ -5673,8 +5673,10 @@ get_mesa_program(struct gl_context *ctx,
    //while (v->eliminate_dead_code());
 
    v->merge_two_dsts();
+/*
    v->merge_registers();
    v->renumber_registers();
+*/
 
    /* Write the END instruction. */
    v->emit_asm(NULL, TGSI_OPCODE_END);
