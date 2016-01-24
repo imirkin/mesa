@@ -136,9 +136,11 @@ private:
    void emitSUCalc(Instruction *);
    void emitSULDGB(const TexInstruction *);
    void emitSUSTGx(const TexInstruction *);
+   void emitSUREDGx(const TexInstruction *);
 
    void emitSULDB(const TexInstruction *);
    void emitSUSTx(const TexInstruction *);
+   void emitSUREDx(const TexInstruction *);
 
    void emitVSHL(const Instruction *);
    void emitVectorSubOp(const Instruction *);
@@ -2230,6 +2232,12 @@ CodeEmitterNVC0::emitSUSTGx(const TexInstruction *i)
 }
 
 void
+CodeEmitterNVC0::emitSUREDGx(const TexInstruction *i)
+{
+   emitNOP(i); /* XXX */
+}
+
+void
 CodeEmitterNVC0::emitSULDB(const TexInstruction *i)
 {
    assert(targ->getChipset() < NVISA_GK104_CHIPSET);
@@ -2276,6 +2284,41 @@ CodeEmitterNVC0::emitSUSTx(const TexInstruction *i)
    emitCachingMode(i->cache);
 
    //code[1] |= 0x00008000; /* .NEAR? */
+   code[1] |= (i->tex.target.getDim() - 1) << 12;
+   if (i->tex.target.getDim() == 1 && i->tex.target.isArray())
+      code[1] |= 1 << 12; /* XXX */
+   if (i->tex.target.isArray() || i->tex.target.isCube())
+      code[1] += 2 << 12;
+
+   srcId(i->src(1), 14);
+   srcId(i->src(0), 20);
+
+   if (i->tex.rIndirectSrc < 0) {
+      code[1] |= 0x00004000;
+      code[0] |= i->tex.r << 26;
+   } else {
+      srcId(i, i->tex.rIndirectSrc, 26);
+   }
+
+   emitPredicate(i);
+}
+
+void
+CodeEmitterNVC0::emitSUREDx(const TexInstruction *i)
+{
+   assert(targ->getChipset() < NVISA_GK104_CHIPSET);
+
+   code[0] = 0x5;
+   code[1] = 0xd8000000;
+
+   if (i->op == OP_SUREDP)
+      code[1] |= i->tex.mask;
+
+   // CAS and EXCH not supported here.
+   assert(i->subOp < 8);
+
+   code[0] |= i->subOp << 5;
+
    code[1] |= (i->tex.target.getDim() - 1) << 12;
    if (i->tex.target.getDim() == 1 && i->tex.target.isArray())
       code[1] |= 1 << 12; /* XXX */
@@ -2571,6 +2614,13 @@ CodeEmitterNVC0::emitInstruction(Instruction *insn)
          emitSUSTGx(insn->asTex());
       else
          emitSUSTx(insn->asTex());
+      break;
+   case OP_SUREDB:
+   case OP_SUREDP:
+      if (targ->getChipset() >= NVISA_GK104_CHIPSET)
+         emitSUREDGx(insn->asTex());
+      else
+         emitSUREDx(insn->asTex());
       break;
    case OP_ATOM:
       emitATOM(insn);

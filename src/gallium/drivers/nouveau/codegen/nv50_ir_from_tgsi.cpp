@@ -2550,6 +2550,7 @@ Converter::handleATOM(Value *dst0[4], DataType ty, uint16_t subOp)
       tex->subOp = subOp;
       tex->tex.mask = 1;
       tex->setType(ty);
+      tex->tex.format = getResourceFormat(code, r);
    }
 
    for (int c = 0; c < 4; ++c)

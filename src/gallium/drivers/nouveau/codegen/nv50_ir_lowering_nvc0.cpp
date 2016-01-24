@@ -1598,6 +1598,29 @@ NVC0LoweringPass::handleSurfaceOpNVC0(TexInstruction *su)
          }
       }
    }
+
+   if (su->op == OP_SUREDP) {
+      const TexInstruction::ImgFormatDesc *format = su->tex.format;
+      int width = format->bits[0] + format->bits[1] +
+         format->bits[2] + format->bits[3];
+
+      // Scale up x coordinate by the width
+      su->setSrc(0, bld.mkOp2v(OP_MUL, TYPE_U32, bld.getSSA(), su->getSrc(0),
+                               bld.loadImm(NULL, width / 8)));
+      su->op = OP_SUREDB;
+
+      /* XXX handle cas/exch */
+      if (su->subOp >= 8)
+         su->subOp = 0;
+
+      if (su->getDef(0)) {
+         Instruction *ld = cloneShallow(func, su);
+         ld->op = OP_SULDB;
+         ld->subOp = 0;
+         su->bb->insertBefore(su, ld);
+         su->setDef(0, NULL);
+      }
+   }
 }
 
 bool
