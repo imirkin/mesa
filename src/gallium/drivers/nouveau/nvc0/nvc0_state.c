@@ -1242,7 +1242,8 @@ nvc0_set_shader_images(struct pipe_context *pipe, unsigned shader,
    if (views) {
       for (i = start; i < end; ++i) {
          const unsigned p = i - start;
-         pipe_resource_reference(&nvc0->images[s][i].resource, NULL);
+         pipe_resource_reference(
+               &nvc0->images[s][i].resource, views[p].resource);
          if (views[p].resource)
             nvc0->images_valid[s] |= (1 << i);
          else
