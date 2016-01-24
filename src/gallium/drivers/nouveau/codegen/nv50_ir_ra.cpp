@@ -2156,6 +2156,9 @@ RegAlloc::InsertConstraintsPass::texConstraintNVC0(TexInstruction *tex)
    if (tex->op == OP_TXQ) {
       s = tex->srcCount(0xff);
       n = 0;
+   } else if (tex->op == OP_SUSTP) {
+      s = tex->tex.target.getArgCount();
+      n = 4;
    } else {
       s = tex->tex.target.getArgCount() - tex->tex.target.isMS();
       if (!tex->tex.target.isArray() &&
@@ -2173,6 +2176,9 @@ RegAlloc::InsertConstraintsPass::texConstraintNVC0(TexInstruction *tex)
       condenseSrcs(tex, 1, n);
 
    condenseDefs(tex);
+
+   if (tex->op == OP_SULDP)
+      addHazard(tex, &tex->src(0));
 }
 
 void

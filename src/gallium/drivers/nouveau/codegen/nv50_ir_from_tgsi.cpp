@@ -39,6 +39,7 @@ static nv50_ir::DataFile translateFile(uint file);
 static nv50_ir::TexTarget translateTexture(uint texTarg);
 static nv50_ir::SVSemantic translateSysVal(uint sysval);
 static nv50_ir::CacheMode translateCacheMode(uint qualifier);
+static nv50_ir::ImgFormat translateImgFormat(uint format);
 
 class Instruction
 {
@@ -451,6 +452,64 @@ static nv50_ir::CacheMode translateCacheMode(uint qualifier)
    if (qualifier & TGSI_MEMORY_COHERENT)
       return nv50_ir::CACHE_CG;
    return nv50_ir::CACHE_CA;
+}
+
+static nv50_ir::ImgFormat translateImgFormat(uint format)
+{
+
+#define FMT_CASE(a, b) \
+  case PIPE_FORMAT_ ## a: return nv50_ir::FMT_ ## b
+
+   switch (format) {
+   FMT_CASE(NONE, NONE);
+
+   FMT_CASE(R32G32B32A32_FLOAT, RGBA32F);
+   FMT_CASE(R16G16B16A16_FLOAT, RGBA16F);
+   FMT_CASE(R32G32_FLOAT, RG32F);
+   FMT_CASE(R16G16_FLOAT, RG16F);
+   FMT_CASE(R11G11B10_FLOAT, R11G11B10F);
+   FMT_CASE(R32_FLOAT, R32F);
+   FMT_CASE(R16_FLOAT, R16F);
+
+   FMT_CASE(R32G32B32A32_UINT, RGBA32UI);
+   FMT_CASE(R16G16B16A16_UINT, RGBA16UI);
+   FMT_CASE(R10G10B10A2_UINT, RGB10A2UI);
+   FMT_CASE(R8G8B8A8_UINT, RGBA8UI);
+   FMT_CASE(R32G32_UINT, RG32UI);
+   FMT_CASE(R16G16_UINT, RG16UI);
+   FMT_CASE(R8G8_UINT, RG8UI);
+   FMT_CASE(R32_UINT, R32UI);
+   FMT_CASE(R16_UINT, R16UI);
+   FMT_CASE(R8_UINT, R8UI);
+
+   FMT_CASE(R32G32B32A32_SINT, RGBA32I);
+   FMT_CASE(R16G16B16A16_SINT, RGBA16I);
+   FMT_CASE(R8G8B8A8_SINT, RGBA8I);
+   FMT_CASE(R32G32_SINT, RG32I);
+   FMT_CASE(R16G16_SINT, RG16I);
+   FMT_CASE(R8G8_SINT, RG8I);
+   FMT_CASE(R32_SINT, R32I);
+   FMT_CASE(R16_SINT, R16I);
+   FMT_CASE(R8_SINT, R8I);
+
+   FMT_CASE(R16G16B16A16_UNORM, RGBA16);
+   FMT_CASE(R10G10B10A2_UNORM, RGB10A2);
+   FMT_CASE(R8G8B8A8_UNORM, RGBA8);
+   FMT_CASE(R16G16_UNORM, RG16);
+   FMT_CASE(R8G8_UNORM, RG8);
+   FMT_CASE(R16_UNORM, R16);
+   FMT_CASE(R8_UNORM, R8);
+
+   FMT_CASE(R16G16B16A16_SNORM, RGBA16_SNORM);
+   FMT_CASE(R8G8B8A8_SNORM, RGBA8_SNORM);
+   FMT_CASE(R16G16_SNORM, RG16_SNORM);
+   FMT_CASE(R8G8_SNORM, RG8_SNORM);
+   FMT_CASE(R16_SNORM, R16_SNORM);
+   FMT_CASE(R8_SNORM, R8_SNORM);
+   }
+
+   assert(!"Unexpected format");
+   return nv50_ir::FMT_NONE;
 }
 
 nv50_ir::DataType Instruction::inferSrcType() const
@@ -1274,7 +1333,8 @@ bool Source::scanInstruction(const struct tgsi_full_instruction *inst)
          if (insn.getDst(0).isIndirect(0))
             indirectTempArrays.insert(insn.getDst(0).getArrayId());
       } else
-      if (insn.getDst(0).getFile() == TGSI_FILE_BUFFER) {
+      if (insn.getDst(0).getFile() == TGSI_FILE_BUFFER ||
+          insn.getDst(0).getFile() == TGSI_FILE_IMAGE) {
          info->io.globalAccess |= 0x2;
       }
    }
@@ -1285,7 +1345,8 @@ bool Source::scanInstruction(const struct tgsi_full_instruction *inst)
          if (src.isIndirect(0))
             indirectTempArrays.insert(src.getArrayId());
       } else
-      if (src.getFile() == TGSI_FILE_BUFFER) {
+      if (src.getFile() == TGSI_FILE_BUFFER ||
+          src.getFile() == TGSI_FILE_IMAGE) {
          info->io.globalAccess |= (insn.getOpcode() == TGSI_OPCODE_LOAD) ?
                0x1 : 0x2;
       } else
@@ -2158,6 +2219,15 @@ getResourceTarget(const tgsi::Source *code, int r)
    return tgsi::translateTexture(code->resources.at(r).target);
 }
 
+static inline const nv50_ir::TexInstruction::ImgFormatDesc *
+getResourceFormat(const tgsi::Source *code, int r)
+{
+   if (isResourceSpecial(r))
+      return &nv50_ir::TexInstruction::formatTable[nv50_ir::FMT_NONE];
+   return &nv50_ir::TexInstruction::formatTable[
+         tgsi::translateImgFormat(code->resources.at(r).format)];
+}
+
 Symbol *
 Converter::getResourceBase(const int r)
 {
@@ -2321,8 +2391,12 @@ Converter::handleLOAD(Value *dst0[4])
             def[c] = dst0[c];
       }
 
-      mkTex(OP_SULDP, getResourceTarget(code, r), code->resources[r].slot, 0,
-            def, off);
+      TexInstruction *ld =
+         mkTex(OP_SULDP, getResourceTarget(code, r), code->resources[r].slot, 0,
+               def, off);
+      ld->tex.mask = tgsi.getDst(0).getMask();
+      ld->tex.format = getResourceFormat(code, r);
+      debug_printf("adding ldp\n");
    }
    FOR_EACH_DST_ENABLED_CHANNEL(0, c, tgsi)
       if (dst0[c] != def[c])
