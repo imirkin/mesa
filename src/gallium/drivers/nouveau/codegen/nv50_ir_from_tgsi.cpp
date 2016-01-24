@@ -2262,8 +2262,9 @@ Converter::getResourceBase(const int r)
 void
 Converter::getResourceCoords(std::vector<Value *> &coords, int r, int s)
 {
-   const int arg =
-      TexInstruction::Target(getResourceTarget(code, r)).getArgCount();
+   TexInstruction::Target t =
+      TexInstruction::Target(getResourceTarget(code, r));
+   const int arg = t.getDim() + (t.isArray() || t.isCube());
 
    for (int c = 0; c < arg; ++c)
       coords.push_back(fetchSrc(s, c));
@@ -2396,7 +2397,6 @@ Converter::handleLOAD(Value *dst0[4])
                def, off);
       ld->tex.mask = tgsi.getDst(0).getMask();
       ld->tex.format = getResourceFormat(code, r);
-      debug_printf("adding ldp\n");
    }
    FOR_EACH_DST_ENABLED_CHANNEL(0, c, tgsi)
       if (dst0[c] != def[c])

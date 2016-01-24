@@ -1524,26 +1524,30 @@ void
 NVC0LoweringPass::handleSurfaceOpNVC0(TexInstruction *su)
 {
    if (su->op == OP_SULDP) {
-      // We must convert this to a generic load.
-      su->op = OP_SULDB;
-
       const TexInstruction::ImgFormatDesc *format = su->tex.format;
       int width = format->bits[0] + format->bits[1] +
          format->bits[2] + format->bits[3];
       Value *untypedDst[4] = {};
       Value *typedDst[4] = {};
 
+      // Scale up x coordinate by the width
+      su->setSrc(0, bld.mkOp2v(OP_MUL, TYPE_U32, bld.getSSA(), su->getSrc(0),
+                               bld.loadImm(NULL, width / 8)));
+
+      // XXX fix up array index ... somehow. And also the height, seemingly.
+
+      // We must convert this to a generic load.
+      su->op = OP_SULDB;
       su->dType = typeOfSize(width / 8);
 
       for (int i = 0; i < width / 32; i++)
          untypedDst[i] = bld.getSSA();
+      if (width < 32)
+         untypedDst[0] = bld.getSSA();
 
       for (int i = 0; i < 4; i++)
          typedDst[i] = su->getDef(i);
 
-      // Scale up x coordinate by the width
-      su->setSrc(0, bld.mkOp2v(OP_MUL, TYPE_U32, bld.getSSA(), su->getSrc(0),
-                               bld.loadImm(NULL, width / 8)));
 
       // Set the untyped dsts as the su's destinations
       for (int i = 0; i < 4; i++)
@@ -1559,9 +1563,9 @@ NVC0LoweringPass::handleSurfaceOpNVC0(TexInstruction *su)
             if (format->type == FLOAT ||
                 format->type == UNORM ||
                 format->type == SNORM)
-               bld.loadImm(typedDst[i], i == 3 ? 1.0 : 0.0);
+               bld.loadImm(typedDst[i], i == 3 ? 1.0f : 0.0f);
             else
-               bld.loadImm(typedDst[i], 0);
+               bld.loadImm(typedDst[i], i == 3 ? 1 : 0);
             continue;
          }
 
@@ -1571,14 +1575,17 @@ NVC0LoweringPass::handleSurfaceOpNVC0(TexInstruction *su)
          else if (format->bits[i] == 16)
             bld.mkCvt(OP_CVT, getDestType(format->type), typedDst[i],
                       getSrcType(format, i), untypedDst[i / 2])
-               ->subOp = i & 1;
+               ->subOp = (i & 1) << (format->type == FLOAT ? 0 : 1);
          else if (format->bits[i] == 8)
             bld.mkCvt(OP_CVT, getDestType(format->type), typedDst[i],
                       getSrcType(format, i), untypedDst[0])
                ->subOp = i;
-         else
+         else {
             bld.mkOp2(OP_EXTBF, TYPE_U32, typedDst[i], untypedDst[bits / 32],
-                      bld.mkImm(bits | (format->bits[i] << 8)));
+                      bld.mkImm((bits % 32) | (format->bits[i] << 8)));
+            if (format->type == UNORM || format->type == SNORM)
+               bld.mkCvt(OP_CVT, TYPE_F32, typedDst[i], getSrcType(format, i), typedDst[i]);
+         }
 
          // Normalize / convert as necessary
          if (format->type == UNORM)
