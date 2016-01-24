@@ -1113,12 +1113,12 @@ static const struct format_mapping format_map[] = {
    },
    {
       { GL_RGB10_A2, 0 },
-      { PIPE_FORMAT_B10G10R10A2_UNORM, PIPE_FORMAT_R10G10B10A2_UNORM,
+      { PIPE_FORMAT_R10G10B10A2_UNORM, PIPE_FORMAT_B10G10R10A2_UNORM,
         DEFAULT_RGBA_FORMATS }
    },
    {
       { 4, GL_RGBA, GL_RGBA8, 0 },
-      { DEFAULT_RGBA_FORMATS }
+      { PIPE_FORMAT_R8G8B8A8_UNORM, DEFAULT_RGBA_FORMATS }
    },
    {
       { GL_BGRA, 0 },
@@ -2006,7 +2006,7 @@ find_exact_format(GLint internalFormat, GLenum format, GLenum type)
    switch (internalFormat) {
    case 4:
    case GL_RGBA:
-   case GL_RGBA8:
+   //case GL_RGBA8:
       tbl = rgba8888_tbl;
       break;
    case 3:
@@ -2014,9 +2014,9 @@ find_exact_format(GLint internalFormat, GLenum format, GLenum type)
    case GL_RGB8:
       tbl = rgbx8888_tbl;
       break;
-   case GL_RGB10_A2:
-      tbl = rgba1010102_tbl;
-      break;
+   //case GL_RGB10_A2:
+   //   tbl = rgba1010102_tbl;
+   //   break;
    default:
       return PIPE_FORMAT_NONE;
    }
