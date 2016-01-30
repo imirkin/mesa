@@ -1025,6 +1025,7 @@ NVC0LoweringPass::handleTXLQ(TexInstruction *i)
 bool
 NVC0LoweringPass::handleSUQ(Instruction *suq)
 {
+   return true;
    suq->op = OP_MOV;
    suq->setSrc(0, loadResLength32(suq->getIndirect(0, 1),
                                   suq->getSrc(0)->reg.fileIndex * 16));
@@ -1600,26 +1601,38 @@ NVC0LoweringPass::handleSurfaceOpNVC0(TexInstruction *su)
    }
 
    if (su->op == OP_SUREDP) {
+      const int dim = su->tex.target.getDim();
+      const int arg = dim + (su->tex.target.isArray() || su->tex.target.isCube());
       const TexInstruction::ImgFormatDesc *format = su->tex.format;
       int width = format->bits[0] + format->bits[1] +
          format->bits[2] + format->bits[3];
+      LValue *addr = bld.getSSA(8);
+      Value *def = su->getDef(0);
 
       // Scale up x coordinate by the width
       su->setSrc(0, bld.mkOp2v(OP_MUL, TYPE_U32, bld.getSSA(), su->getSrc(0),
                                bld.loadImm(NULL, width / 8)));
-      su->op = OP_SUREDB;
+      su->op = OP_SULEA;
 
-      /* XXX handle cas/exch */
-      if (su->subOp >= 8)
-         su->subOp = 0;
+      // Set the destination to the address
+      su->dType = TYPE_U64;
+      su->setDef(0, addr);
 
-      if (su->getDef(0)) {
-         Instruction *ld = cloneShallow(func, su);
-         ld->op = OP_SULDB;
-         ld->subOp = 0;
-         su->bb->insertBefore(su, ld);
-         su->setDef(0, NULL);
+      bld.setPosition(su, true);
+
+      // Perform the atomic op
+      Instruction *atom = bld.mkOp2(OP_ATOM, su->sType, def,
+                                    bld.mkSymbol(FILE_MEMORY_GLOBAL, 0,
+                                                 su->sType, 0),
+                                    su->getSrc(arg));
+      std::swap(atom->subOp, su->subOp);
+      if (atom->subOp == NV50_IR_SUBOP_ATOM_CAS) {
+         atom->setSrc(2, su->getSrc(arg + 1));
+         handleCasExch(atom, false);
+         su->setSrc(arg + 1, NULL);
       }
+      atom->setIndirect(0, 0, addr);
+      su->setSrc(arg, NULL);
    }
 }
 

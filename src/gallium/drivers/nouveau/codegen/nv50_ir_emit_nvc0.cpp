@@ -141,6 +141,9 @@ private:
    void emitSULDB(const TexInstruction *);
    void emitSUSTx(const TexInstruction *);
    void emitSUREDx(const TexInstruction *);
+   void emitSULEA(const TexInstruction *);
+
+   void emitSUQ(const TexInstruction *);
 
    void emitVSHL(const Instruction *);
    void emitVectorSubOp(const Instruction *);
@@ -2339,6 +2342,55 @@ CodeEmitterNVC0::emitSUREDx(const TexInstruction *i)
 }
 
 void
+CodeEmitterNVC0::emitSULEA(const TexInstruction *i)
+{
+   assert(targ->getChipset() < NVISA_GK104_CHIPSET);
+
+   code[0] = 0x5;
+   code[1] = 0xf0000000;
+
+   code[1] |= (i->tex.target.getDim() - 1) << 12;
+   if (i->tex.target.getDim() == 1 && i->tex.target.isArray())
+      code[1] |= 1 << 12; /* XXX */
+   if (i->tex.target.isArray() || i->tex.target.isCube())
+      code[1] += 2 << 12;
+
+   defId(i->def(0), 14);
+   if (i->defExists(1))
+      defId(i->def(1), 32 + 22);
+   srcId(i->src(0), 20);
+
+   if (i->tex.rIndirectSrc < 0) {
+      code[1] |= 0x00004000;
+      code[0] |= i->tex.r << 26;
+   } else {
+      srcId(i, i->tex.rIndirectSrc, 26);
+   }
+
+   emitPredicate(i);
+}
+
+void
+CodeEmitterNVC0::emitSUQ(const TexInstruction *i)
+{
+   assert(targ->getChipset() < NVISA_GK104_CHIPSET);
+
+   code[0] = 0x65;
+   code[1] = 0xe4000000;
+
+   defId(i->def(0), 14);
+
+   if (i->tex.rIndirectSrc < 0) {
+      code[1] |= 0x00004000;
+      code[0] |= i->tex.r << 26;
+   } else {
+      srcId(i, i->tex.rIndirectSrc, 26);
+   }
+
+   emitPredicate(i);
+}
+
+void
 CodeEmitterNVC0::emitVectorSubOp(const Instruction *i)
 {
    switch (NV50_IR_SUBOP_Vn(i->subOp)) {
@@ -2621,6 +2673,12 @@ CodeEmitterNVC0::emitInstruction(Instruction *insn)
          emitSUREDGx(insn->asTex());
       else
          emitSUREDx(insn->asTex());
+      break;
+   case OP_SULEA:
+      emitSULEA(insn->asTex());
+      break;
+   case OP_SUQ:
+      emitSUQ(insn->asTex());
       break;
    case OP_ATOM:
       emitATOM(insn);

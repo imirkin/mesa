@@ -683,7 +683,7 @@ nvc0_update_surface_bindings(struct nvc0_context *nvc0)
             address += view->u.buf.first_element * blocksize;
             PUSH_DATAh(push, address);
             PUSH_DATA (push, address);
-            PUSH_DATA (push, width);
+            PUSH_DATA (push, width * blocksize);
             PUSH_DATA (push, NVC0_3D_IMAGE_HEIGHT_LINEAR | 1);\
             PUSH_DATA (push, rt);
             PUSH_DATA (push, 0);

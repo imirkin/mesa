@@ -3293,12 +3293,24 @@ Converter::handleInstruction(const struct tgsi_full_instruction *insn)
    case TGSI_OPCODE_ATOMIMAX:
       handleATOM(dst0, dstTy, tgsi::opcodeToSubOp(tgsi.getOpcode()));
       break;
-   case TGSI_OPCODE_RESQ:
-      geni = mkOp1(OP_SUQ, TYPE_U32, dst0[0],
-                   makeSym(TGSI_FILE_BUFFER, tgsi.getSrc(0).getIndex(0), -1, 0, 0));
+   case TGSI_OPCODE_RESQ: {
+      int r = tgsi.getSrc(0).getIndex(0);
+      TexInstruction *texi = new_TexInstruction(func, OP_SUQ);
+      texi->tex.r = r;
       if (tgsi.getSrc(0).isIndirect(0))
-         geni->setIndirect(0, 1, fetchSrc(tgsi.getSrc(0).getIndirect(0), 0, 0));
+         texi->setIndirectR(fetchSrc(tgsi.getSrc(0).getIndirect(0), 0, 0));
+      for (int c = 0, d = 0; c < 4; ++c) {
+         if (dst0[c]) {
+            texi->setDef(d++, dst0[c]);
+            texi->tex.mask |= 1 << c;
+         }
+      }
+      bb->insertTail(texi);
+
+      //geni = mkOp1(OP_SUQ, TYPE_U32, dst0[0],
+      //             makeSym(tgsi.getSrc(0).getFile(), tgsi.getSrc(0).getIndex(0), -1, 0, 0));
       break;
+   }
    case TGSI_OPCODE_IBFE:
    case TGSI_OPCODE_UBFE:
       FOR_EACH_DST_ENABLED_CHANNEL(0, c, tgsi) {
