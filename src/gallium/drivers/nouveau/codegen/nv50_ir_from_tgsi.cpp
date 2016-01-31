@@ -2397,6 +2397,8 @@ Converter::handleLOAD(Value *dst0[4])
                def, off);
       ld->tex.mask = tgsi.getDst(0).getMask();
       ld->tex.format = getResourceFormat(code, r);
+      if (tgsi.getSrc(0).isIndirect(0))
+         ld->setIndirectR(fetchSrc(tgsi.getSrc(0).getIndirect(0), 0, NULL));
    }
    FOR_EACH_DST_ENABLED_CHANNEL(0, c, tgsi)
       if (dst0[c] != def[c])
@@ -2480,8 +2482,12 @@ Converter::handleSTORE()
       FOR_EACH_DST_ENABLED_CHANNEL(0, c, tgsi)
          src.push_back(fetchSrc(1, c));
 
-      mkTex(OP_SUSTP, getResourceTarget(code, r), code->resources[r].slot, 0,
-            dummy, src)->tex.mask = tgsi.getDst(0).getMask();
+      TexInstruction *st =
+         mkTex(OP_SUSTP, getResourceTarget(code, r), code->resources[r].slot, 0,
+               dummy, src);
+      st->tex.mask = tgsi.getDst(0).getMask();
+      if (tgsi.getSrc(0).isIndirect(0))
+         st->setIndirectR(fetchSrc(tgsi.getSrc(0).getIndirect(0), 0, NULL));
    }
 }
 
@@ -2551,6 +2557,8 @@ Converter::handleATOM(Value *dst0[4], DataType ty, uint16_t subOp)
       tex->tex.mask = 1;
       tex->setType(ty);
       tex->tex.format = getResourceFormat(code, r);
+      if (tgsi.getSrc(0).isIndirect(0))
+         tex->setIndirectR(fetchSrc(tgsi.getSrc(0).getIndirect(0), 0, NULL));
    }
 
    for (int c = 0; c < 4; ++c)
