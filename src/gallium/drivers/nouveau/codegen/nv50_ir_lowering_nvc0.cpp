@@ -1534,6 +1534,10 @@ NVC0LoweringPass::handleSurfaceOpNVC0(TexInstruction *su)
       // Scale up x coordinate by the width
       su->setSrc(0, bld.mkOp2v(OP_MUL, TYPE_U32, bld.getSSA(), su->getSrc(0),
                                bld.loadImm(NULL, width / 8)));
+      if (su->tex.target.isArray() && su->tex.target.getDim() == 1) {
+         su->moveSources(1, 1);
+         su->setSrc(1, bld.loadImm(NULL, 0));
+      }
 
       // XXX fix up array index ... somehow. And also the height, seemingly.
 
@@ -1612,6 +1616,10 @@ NVC0LoweringPass::handleSurfaceOpNVC0(TexInstruction *su)
       // Scale up x coordinate by the width
       su->setSrc(0, bld.mkOp2v(OP_MUL, TYPE_U32, bld.getSSA(), su->getSrc(0),
                                bld.loadImm(NULL, width / 8)));
+      if (su->tex.target.isArray() && su->tex.target.getDim() == 1) {
+         su->moveSources(1, 1);
+         su->setSrc(1, bld.loadImm(NULL, 0));
+      }
       su->op = OP_SULEA;
 
       // Set the destination to the address

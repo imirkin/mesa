@@ -267,6 +267,18 @@ nvc0_invalidate_resource_storage(struct nouveau_context *ctx,
          }
       }
       }
+
+      for (s = 0; s < 5; ++s) {
+      for (i = 0; i < 8; ++i) {
+         if (nvc0->images[s][i].resource == res) {
+            nvc0->buffers_dirty[s] |= 1 << i;
+            nvc0->dirty |= NVC0_NEW_SURFACES;
+            nouveau_bufctx_reset(nvc0->bufctx_3d, NVC0_BIND_SUF);
+            if (!--ref)
+               return ref;
+         }
+      }
+      }
    }
 
    return ref;

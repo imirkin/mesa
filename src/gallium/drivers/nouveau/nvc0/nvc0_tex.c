@@ -681,9 +681,10 @@ nvc0_update_surface_bindings(struct nvc0_context *nvc0)
             unsigned blocksize = util_format_get_blocksize(view->format);
             unsigned width = view->u.buf.last_element - view->u.buf.first_element + 1;
             address += view->u.buf.first_element * blocksize;
+            assert(!(address & 0xff));
             PUSH_DATAh(push, address);
             PUSH_DATA (push, address);
-            PUSH_DATA (push, width * blocksize);
+            PUSH_DATA (push, align(width * blocksize, 0x100));
             PUSH_DATA (push, NVC0_3D_IMAGE_HEIGHT_LINEAR | 1);\
             PUSH_DATA (push, rt);
             PUSH_DATA (push, 0);
