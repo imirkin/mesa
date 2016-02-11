@@ -141,7 +141,7 @@ intel_finalize_mipmap_tree(struct brw_context *brw, GLuint unit)
       intelObj->mt = intel_miptree_create(brw,
                                           intelObj->base.Target,
 					  firstImage->base.Base.TexFormat,
-                                          0, /* first_level */
+                                          validate_first_level,
                                           validate_last_level,
                                           width,
                                           height,
