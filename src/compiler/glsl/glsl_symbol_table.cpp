@@ -167,8 +167,13 @@ bool glsl_symbol_table::add_variable(ir_variable *v)
 
 bool glsl_symbol_table::add_type(const char *name, const glsl_type *t)
 {
-   symbol_table_entry *entry = new(mem_ctx) symbol_table_entry(t);
-   return _mesa_symbol_table_add_symbol(table, -1, name, entry) == 0;
+   symbol_table_entry *existing = get_entry(name);
+   if (!existing) {
+      symbol_table_entry *entry = new(mem_ctx) symbol_table_entry(t);
+      return _mesa_symbol_table_add_symbol(table, -1, name, entry) == 0;
+   }
+   existing->t = t;
+   return true;
 }
 
 bool glsl_symbol_table::add_interface(const char *name, const glsl_type *i,
