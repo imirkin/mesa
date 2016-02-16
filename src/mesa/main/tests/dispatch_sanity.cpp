@@ -2575,5 +2575,8 @@ const struct function gles31_functions_possible[] = {
    /* GL_OES_geometry_shader */
    { "glFramebufferTextureOES", 31, -1},
 
+   /* GL_OES_texture_view */
+   { "glTextureViewOES", 31, -1 },
+
    { NULL, 0, -1 },
  };

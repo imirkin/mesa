@@ -364,6 +364,7 @@ EXT(OES_texture_mirrored_repeat             , dummy_true                        
 EXT(OES_texture_npot                        , ARB_texture_non_power_of_two           ,  x ,  x , ES1, ES2, 2005)
 EXT(OES_texture_stencil8                    , ARB_texture_stencil8                   ,  x ,  x ,  x ,  30, 2014)
 EXT(OES_texture_storage_multisample_2d_array, ARB_texture_multisample                ,  x ,  x , ES1,  31, 2014)
+EXT(OES_texture_view                        , ARB_texture_view                       ,  x ,  x ,  x ,  31, 2014)
 EXT(OES_vertex_array_object                 , dummy_true                             ,  x ,  x , ES1, ES2, 2010)
 
 EXT(S3_s3tc                                 , ANGLE_texture_compression_dxt          , GLL, GLC,  x ,  x , 1999)

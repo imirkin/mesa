@@ -1295,4 +1295,20 @@
 
 </category>
 
+<category name="GL_OES_texture_view" number="218">
+
+    <function name="TextureViewOES" alias="TextureView" es2="3.1">
+      <param name="texture" type="GLuint"/>
+      <param name="target" type="GLenum"/>
+      <param name="origtexture" type="GLuint"/>
+      <param name="internalformat" type="GLenum"/>
+      <param name="minlevel" type="GLuint"/>
+      <param name="numlevels" type="GLuint"/>
+      <param name="minlayer" type="GLuint"/>
+      <param name="numlayers" type="GLuint"/>
+    </function>
+
+</category>
+
+
 </OpenGLAPI>
