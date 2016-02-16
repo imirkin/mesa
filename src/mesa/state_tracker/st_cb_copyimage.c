@@ -303,6 +303,7 @@ swizzled_copy(struct pipe_context *pipe,
    src_desc = util_format_description(blit_src_format);
    dst_desc = util_format_description(blit_dst_format);
 
+/* XXX hack */if (src_desc->block.bits != dst_desc->block.bits) return;
    assert(src_desc->block.bits == dst_desc->block.bits);
    bits = src_desc->block.bits;
 
