@@ -326,8 +326,6 @@ nvc0_mt_transfer_can_map_directly(struct nv50_miptree *mt)
       return false;
    if (mt->base.base.usage != PIPE_USAGE_STAGING)
       return false;
-   if (mt->ms_x)
-      return false;
    return !nouveau_bo_memtype(mt->base.bo);
 }
 
@@ -414,16 +412,13 @@ nvc0_miptree_transfer_map(struct pipe_context *pctx,
    }
 
    tx->rect[1].cpp = tx->rect[0].cpp;
-   tx->rect[1].width = tx->nblocksx >> mt->ms_x;
-   tx->rect[1].height = tx->nblocksy >> mt->ms_y;
+   tx->rect[1].width = tx->nblocksx;
+   tx->rect[1].height = tx->nblocksy;
    tx->rect[1].depth = 1;
    tx->rect[1].pitch = tx->base.stride;
    tx->rect[1].domain = NOUVEAU_BO_GART;
 
    if (usage & PIPE_TRANSFER_READ) {
-      if (mt->ms_x) {
-
-      } else {
       unsigned base = tx->rect[0].base;
       unsigned z = tx->rect[0].z;
       unsigned i;
@@ -439,7 +434,6 @@ nvc0_miptree_transfer_map(struct pipe_context *pctx,
       tx->rect[0].z = z;
       tx->rect[0].base = base;
       tx->rect[1].base = 0;
-      }
    }
 
    if (tx->rect[1].bo->map) {
@@ -481,9 +475,6 @@ nvc0_miptree_transfer_unmap(struct pipe_context *pctx,
    }
 
    if (tx->base.usage & PIPE_TRANSFER_WRITE) {
-      if (mt->ms_x) {
-
-      } else {
       for (i = 0; i < tx->nlayers; ++i) {
          nvc0->m2mf_copy_rect(nvc0, &tx->rect[0], &tx->rect[1],
                               tx->nblocksx, tx->nblocksy);
@@ -492,7 +483,6 @@ nvc0_miptree_transfer_unmap(struct pipe_context *pctx,
          else
             tx->rect[0].base += mt->layer_stride;
          tx->rect[1].base += tx->nblocksy * tx->base.stride;
-      }
       }
       NOUVEAU_DRV_STAT(&nvc0->screen->base, tex_transfers_wr, 1);
 
