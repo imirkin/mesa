@@ -88,8 +88,11 @@ make_view(struct gl_context *ctx, struct gl_texture_image *tex_image,
           GLenum internal_format)
 {
    struct gl_texture_object *tex_obj = tex_image->TexObject;
+   const GLuint numFaces = _mesa_num_tex_faces(tex_obj->Target);
    struct gl_texture_object *view_tex_obj;
    mesa_format tex_format;
+   GLuint face;
+
 
    /* Set up the new texture object */
    _mesa_GenTextures(1, view_tex_name);
@@ -115,24 +118,31 @@ make_view(struct gl_context *ctx, struct gl_texture_image *tex_image,
    view_tex_obj->Target = tex_obj->Target;
    view_tex_obj->TargetIndex = tex_obj->TargetIndex;
 
-   *view_tex_image = _mesa_get_tex_image(ctx, view_tex_obj, tex_obj->Target, 0);
+   for (face = 0; face < numFaces; face++) {
+      const GLenum faceTarget = _mesa_cube_face_target(tex_obj->Target, face);
+      struct gl_texture_image *faceImage =
+         _mesa_get_tex_image(ctx, view_tex_obj, faceTarget, 0);
+      if (!faceImage) {
+         _mesa_error(ctx, GL_OUT_OF_MEMORY, "glTexStorage");
+         _mesa_DeleteTextures(1, view_tex_name);
+         *view_tex_name = 0;
+         return false;
+      }
 
-   if (!*view_tex_image) {
-      _mesa_DeleteTextures(1, view_tex_name);
-      *view_tex_name = 0;
-      return false;
+      _mesa_init_teximage_fields(ctx, faceImage,
+                                 tex_image->Width, tex_image->Height,
+                                 tex_image->Depth,
+                                 0, internal_format, tex_format);
    }
 
-   _mesa_init_teximage_fields(ctx, *view_tex_image,
-                              tex_image->Width, tex_image->Height,
-                              tex_image->Depth,
-                              0, internal_format, tex_format);
+   *view_tex_image = _mesa_get_tex_image(ctx, view_tex_obj, tex_obj->Target, 0);
+   assert(*view_tex_image);
 
    view_tex_obj->MinLevel = tex_image->Level;
    view_tex_obj->NumLevels = 1;
    view_tex_obj->MinLayer = tex_obj->MinLayer;
    view_tex_obj->NumLayers = tex_obj->NumLayers;
-   view_tex_obj->Immutable = tex_obj->Immutable;
+   view_tex_obj->Immutable = GL_TRUE;
    view_tex_obj->ImmutableLevels = tex_obj->ImmutableLevels;
 
    if (ctx->Driver.TextureView != NULL &&
