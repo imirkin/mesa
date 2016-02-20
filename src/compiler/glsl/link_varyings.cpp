@@ -2166,7 +2166,7 @@ assign_varying_locations(struct gl_context *ctx,
 
          if (var && var->data.mode == ir_var_shader_in &&
              var->data.is_unmatched_generic_inout) {
-            if (!prog->IsES && prog->Version <= 120) {
+            if (!prog->IsES && prog->Version <= 120 || prog->IsES) {
                /* On page 25 (page 31 of the PDF) of the GLSL 1.20 spec:
                 *
                 *     Only those varying variables used (i.e. read) in

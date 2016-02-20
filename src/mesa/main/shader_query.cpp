@@ -1380,7 +1380,7 @@ validate_io(const struct gl_shader *producer,
             const struct gl_shader *consumer, bool isES)
 {
    assert(producer && consumer);
-   unsigned inputs = 0, outputs = 0;
+   unsigned inputs = 0, outputs = 0, matched_inputs = 0;
 
    /* From OpenGL ES 3.1 spec (Interface matching):
     *
@@ -1434,14 +1434,11 @@ validate_io(const struct gl_shader *producer,
 
       outputs++;
 
-      inputs = 0;
       foreach_in_list(ir_instruction, in, consumer->ir) {
          ir_variable *in_var = in->as_variable();
          if (!in_var || in_var->data.mode != ir_var_shader_in ||
              is_gl_identifier(in_var->name))
             continue;
-
-         inputs++;
 
          /* Match by location qualifier and precision.
           *
@@ -1452,8 +1449,10 @@ validate_io(const struct gl_shader *producer,
          if ((in_var->data.explicit_location &&
              out_var->data.explicit_location) &&
              in_var->data.location == out_var->data.location &&
-             in_var->data.precision == out_var->data.precision)
-            continue;
+             in_var->data.precision == out_var->data.precision) {
+            matched_inputs++;
+            break;
+         }
 
          unsigned len = strlen(in_var->name);
 
@@ -1473,10 +1472,23 @@ validate_io(const struct gl_shader *producer,
              */
             if (in_var->data.precision != out_var->data.precision)
                return false;
+
+            matched_inputs++;
+            break;
          }
       }
    }
-   return inputs == outputs;
+
+   foreach_in_list(ir_instruction, in, consumer->ir) {
+      ir_variable *in_var = in->as_variable();
+      if (!in_var || in_var->data.mode != ir_var_shader_in ||
+          is_gl_identifier(in_var->name))
+         continue;
+
+      inputs++;
+   }
+
+   return inputs == outputs && inputs == matched_inputs;
 }
 
 /**

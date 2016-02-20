@@ -644,6 +644,7 @@ static const _mesa_glsl_extension _mesa_glsl_supported_extensions[] = {
    EXT(EXT_gpu_shader5,                false, true,      ARB_gpu_shader5),
    EXT(EXT_separate_shader_objects,    false, true,      dummy_true),
    EXT(EXT_shader_integer_mix,         true,  true,      EXT_shader_integer_mix),
+   EXT(EXT_shader_io_blocks,           false, true,      dummy_true),
    EXT(EXT_shader_samples_identical,   true,  true,      EXT_shader_samples_identical),
    EXT(EXT_texture_array,              true,  false,     EXT_texture_array),
    EXT(EXT_texture_buffer,             false, true,      OES_texture_buffer),
@@ -892,7 +893,8 @@ _mesa_ast_process_interface_block(YYLTYPE *locp,
                             "required for defining uniform blocks");
       }
    } else {
-      if (state->es_shader || state->language_version < 150) {
+      if ((state->es_shader && (!state->EXT_shader_io_blocks_enable)) ||
+          state->language_version < 150) {
          _mesa_glsl_error(locp, state,
                           "#version 150 required for using "
                           "interface blocks");
