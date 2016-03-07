@@ -354,6 +354,10 @@ nv50_clear_render_target(struct pipe_context *pipe,
    PUSH_DATA (push, nv50->cond_condmode);
 
    nv50->dirty_3d |= NV50_NEW_3D_FRAMEBUFFER | NV50_NEW_3D_SCISSOR;
+
+   /* This texture might be bound to the current texture state */
+   BEGIN_NV04(push, NV50_3D(TEX_CACHE_CTL), 1);
+   PUSH_DATA (push, 0x20);
 }
 
 static void
@@ -437,6 +441,10 @@ nv50_clear_depth_stencil(struct pipe_context *pipe,
    PUSH_DATA (push, nv50->cond_condmode);
 
    nv50->dirty_3d |= NV50_NEW_3D_FRAMEBUFFER | NV50_NEW_3D_SCISSOR;
+
+   /* This texture might be bound to the current texture state */
+   BEGIN_NV04(push, NV50_3D(TEX_CACHE_CTL), 1);
+   PUSH_DATA (push, 0x20);
 }
 
 void
@@ -592,6 +600,10 @@ nv50_clear(struct pipe_context *pipe, unsigned buffers,
    /* restore the array mode */
    BEGIN_NV04(push, NV50_3D(RT_ARRAY_MODE), 1);
    PUSH_DATA (push, nv50->rt_array_mode);
+
+   /* This texture might be bound to the current texture state */
+   BEGIN_NV04(push, NV50_3D(TEX_CACHE_CTL), 1);
+   PUSH_DATA (push, 0x20);
 }
 
 static void
@@ -799,6 +811,10 @@ nv50_clear_buffer(struct pipe_context *pipe,
    }
 
    nv50->dirty_3d |= NV50_NEW_3D_FRAMEBUFFER | NV50_NEW_3D_SCISSOR;
+
+   /* This buffer might be bound to the current texture state */
+   BEGIN_NV04(push, NV50_3D(TEX_CACHE_CTL), 1);
+   PUSH_DATA (push, 0x20);
 }
 
 /* =============================== BLIT CODE ===================================

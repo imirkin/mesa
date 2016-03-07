@@ -354,6 +354,9 @@ nvc0_clear_render_target(struct pipe_context *pipe,
    IMMED_NVC0(push, NVC0_3D(COND_MODE), nvc0->cond_condmode);
 
    nvc0->dirty_3d |= NVC0_NEW_3D_FRAMEBUFFER;
+
+   /* This buffer might be bound to the current texture state */
+   IMMED_NVC0(push, NVC0_3D(TEX_CACHE_CTL), 0);
 }
 
 static void
@@ -610,6 +613,9 @@ nvc0_clear_buffer(struct pipe_context *pipe,
    }
 
    nvc0->dirty_3d |= NVC0_NEW_3D_FRAMEBUFFER;
+
+   /* This buffer might be bound to the current texture state */
+   IMMED_NVC0(push, NVC0_3D(TEX_CACHE_CTL), 0);
 }
 
 static void
@@ -679,6 +685,9 @@ nvc0_clear_depth_stencil(struct pipe_context *pipe,
    IMMED_NVC0(push, NVC0_3D(COND_MODE), nvc0->cond_condmode);
 
    nvc0->dirty_3d |= NVC0_NEW_3D_FRAMEBUFFER;
+
+   /* This texture might be bound to the current texture state */
+   IMMED_NVC0(push, NVC0_3D(TEX_CACHE_CTL), 0);
 }
 
 void
@@ -753,6 +762,9 @@ nvc0_clear(struct pipe_context *pipe, unsigned buffers,
                     (j << NVC0_3D_CLEAR_BUFFERS_LAYER__SHIFT));
       }
    }
+
+   /* This texture might be bound to the current texture state */
+   IMMED_NVC0(push, NVC0_3D(TEX_CACHE_CTL), 0);
 }
 
 
