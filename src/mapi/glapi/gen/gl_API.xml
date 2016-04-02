@@ -8291,6 +8291,27 @@
 <!-- ARB extension 171 -->
 <xi:include href="ARB_pipeline_statistics_query.xml" xmlns:xi="http://www.w3.org/2001/XInclude"/>
 
+<category name="KHR_blend_equation_advanced" number="174">
+    <enum name="BLEND_ADVANCED_COHERENT_KHR"              value="0x9285"/>
+    <enum name="MULTIPLY_KHR"                             value="0x9294"/>
+    <enum name="SCREEN_KHR"                               value="0x9294"/>
+    <enum name="OVERLAY_KHR"                              value="0x9294"/>
+    <enum name="DARKEN_KHR"                               value="0x9294"/>
+    <enum name="LIGHTEN_KHR"                              value="0x9294"/>
+    <enum name="COLORDODGE_KHR"                           value="0x9294"/>
+    <enum name="COLORBURN_KHR"                            value="0x9294"/>
+    <enum name="HARDLIGHT_KHR"                            value="0x9294"/>
+    <enum name="SOFTLIGHT_KHR"                            value="0x9294"/>
+    <enum name="DIFFERENCE_KHR"                           value="0x9294"/>
+    <enum name="EXCLUSION_KHR"                            value="0x9294"/>
+    <enum name="HSL_HUE_KHR"                              value="0x9294"/>
+    <enum name="HSL_SATURATION_KHR"                       value="0x9294"/>
+    <enum name="HSL_COLOR_KHR"                            value="0x9294"/>
+    <enum name="HSL_LUMINOSITY_KHR"                       value="0x9294"/>
+
+    <function name="BlendBarrierKHR" es2="2.0"/>
+</category>
+
 <!-- Non-ARB extensions sorted by extension number. -->
 
 <category name="GL_EXT_blend_color" number="2">

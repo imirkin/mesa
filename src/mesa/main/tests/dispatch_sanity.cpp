@@ -946,6 +946,9 @@ const struct function common_desktop_functions_possible[] = {
    /* GL_GREMEDY_string_marker */
    { "glStringMarkerGREMEDY", 15, -1 },
 
+   /* GL_KHR_blend_equation_advanced */
+   { "glBlendBarrierKHR", 20, -1 },
+
    { NULL, 0, -1 }
 };
 
@@ -2305,6 +2308,9 @@ const struct function gles2_functions_possible[] = {
 
    /* GL_EXT_polygon_offset_clamp */
    { "glPolygonOffsetClampEXT", 11, -1 },
+
+   /* GL_KHR_blend_equation_advanced */
+   { "glBlendBarrierKHR", 20, -1 },
 
    { NULL, 0, -1 }
 };

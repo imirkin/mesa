@@ -101,6 +101,9 @@ _mesa_ColorMaski( GLuint buf, GLboolean red, GLboolean green,
 extern void GLAPIENTRY
 _mesa_ClampColor(GLenum target, GLenum clamp);
 
+extern void GLAPIENTRY
+_mesa_BlendBarrierKHR(void);
+
 extern GLboolean
 _mesa_get_clamp_fragment_color(const struct gl_context *ctx,
                                const struct gl_framebuffer *drawFb);

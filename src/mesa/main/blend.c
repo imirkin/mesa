@@ -826,6 +826,14 @@ invalid_enum:
                _mesa_enum_to_string(target));
 }
 
+void GLAPIENTRY
+_mesa_BlendBarrierKHR(void)
+{
+   GET_CURRENT_CONTEXT(ctx);
+
+   _mesa_error(ctx, GL_INVALID_OPERATION, "glBlendBarrierKHR");
+}
+
 static GLboolean
 get_clamp_color(const struct gl_framebuffer *fb, GLenum clamp)
 {
