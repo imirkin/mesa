@@ -350,6 +350,22 @@ legal_blend_equation(const struct gl_context *ctx, GLenum mode)
    case GL_MIN:
    case GL_MAX:
       return ctx->Extensions.EXT_blend_minmax;
+   case GL_MULTIPLY_KHR:
+   case GL_SCREEN_KHR:
+   case GL_OVERLAY_KHR:
+   case GL_DARKEN_KHR:
+   case GL_LIGHTEN_KHR:
+   case GL_COLORDODGE_KHR:
+   case GL_COLORBURN_KHR:
+   case GL_HARDLIGHT_KHR:
+   case GL_SOFTLIGHT_KHR:
+   case GL_DIFFERENCE_KHR:
+   case GL_EXCLUSION_KHR:
+   case GL_HSL_HUE_KHR:
+   case GL_HSL_SATURATION_KHR:
+   case GL_HSL_COLOR_KHR:
+   case GL_HSL_LUMINOSITY_KHR:
+      return ctx->Extensions.KHR_blend_equation_advanced;
    default:
       return GL_FALSE;
    }
