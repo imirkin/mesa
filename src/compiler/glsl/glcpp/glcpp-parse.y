@@ -2469,6 +2469,9 @@ _glcpp_parser_handle_version_declaration(glcpp_parser_t *parser, intmax_t versio
 
       if (extensions->EXT_shader_samples_identical)
          add_builtin_define(parser, "GL_EXT_shader_samples_identical", 1);
+
+      if (extensions->KHR_blend_equation_advanced)
+         add_builtin_define(parser, "GL_KHR_blend_equation_advanced", 1);
    }
 
    if (version >= 150)

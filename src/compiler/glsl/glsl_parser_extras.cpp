@@ -617,6 +617,7 @@ static const _mesa_glsl_extension _mesa_glsl_supported_extensions[] = {
 
    /* KHR extensions go here, sorted alphabetically.
     */
+   EXT(KHR_blend_equation_advanced,    true,  true,      KHR_blend_equation_advanced),
 
    /* OES extensions go here, sorted alphabetically.
     */
