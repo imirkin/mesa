@@ -159,6 +159,7 @@ private:
    void dround_even_to_dfrac(ir_expression *);
    void dtrunc_to_dfrac(ir_expression *);
    void dsign_to_csel(ir_expression *);
+   void interpolate_at_splitup(ir_expression *);
 };
 
 } /* anonymous namespace */
@@ -954,6 +955,35 @@ lower_instructions_visitor::dsign_to_csel(ir_expression *ir)
    this->progress = true;
 }
 
+void
+lower_instructions_visitor::interpolate_at_splitup(ir_expression *ir)
+{
+   /* Convert an interpolateAt with a multi-channel interpolant to a
+    * per-interpolant interpolate call. This avoids difficulties with varying
+    * packing.
+    *
+    * The idea is to make interpolateAt(vec4) into
+    * vec4(interpolateAt(a.x), interpolateAt(a.y), ...).
+    */
+   if (ir->type->vector_elements > 1) {
+      ir_rvalue *interpolant = ir->operands[0];
+      ir_rvalue *op1 = ir->operands[1];
+      for (int i = 0; i < ir->type->vector_elements; i++) {
+         if (op1) {
+            ir->operands[i] = expr(
+                  ir->operation,
+                  swizzle(interpolant, i, 1), op1->clone(ir, NULL));
+         } else {
+            ir->operands[i] = expr(
+                  ir->operation,
+                  swizzle(interpolant, i, 1));
+         }
+      }
+      ir->operation = ir_quadop_vector;
+      this->progress = true;
+   }
+}
+
 ir_visitor_status
 lower_instructions_visitor::visit_leave(ir_expression *ir)
 {
@@ -1055,6 +1085,13 @@ lower_instructions_visitor::visit_leave(ir_expression *ir)
       if (lowering(DOPS_TO_DFRAC) && ir->type->is_double())
          dsign_to_csel(ir);
       break;
+
+   case ir_unop_interpolate_at_centroid:
+   case ir_binop_interpolate_at_offset:
+   case ir_binop_interpolate_at_sample:
+      interpolate_at_splitup(ir);
+      break;
+
    default:
       return visit_continue;
    }
