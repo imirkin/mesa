@@ -2733,24 +2733,61 @@ Converter::handleINTERP(Value *dst[4])
    // Check whether the input is linear. All other attributes ignored.
    Instruction *insn;
    Value *offset = NULL, *ptr = NULL, *w = NULL;
+   Symbol *sym[4] = { NULL };
    bool linear;
    operation op;
    int c, mode;
 
    tgsi::Instruction::SrcRegister src = tgsi.getSrc(0);
-   assert(src.getFile() == TGSI_FILE_INPUT);
 
-   if (src.isIndirect(0))
+   // In some odd cases, in large part due to varying packing, the source
+   // might not actually be an input. This is illegal TGSI, but it's easier to
+   // account for it here than it is to fix it where the TGSI is being
+   // generated. In that case, it's going to be a straight up mov (or sequence
+   // of mov's) from the input in question. We follow the mov chain to see
+   // which input we need to use.
+   FOR_EACH_DST_ENABLED_CHANNEL(0, c, tgsi) {
+      if (src.getFile() == TGSI_FILE_INPUT) {
+         sym[c] = srcToSym(src, c);
+         continue;
+      }
+      Value *val = fetchSrc(0, c);
+      assert(val->defs.size() == 1);
+      insn = val->getInsn();
+      while (insn->op == OP_MOV) {
+         assert(insn->getSrc(0)->defs.size() == 1);
+         insn = insn->getSrc(0)->getInsn();
+         assert(insn);
+         if (!insn) {
+            // This could happen if there's an indirect situation which caused
+            // us to move this temp array into local memory. Just bail.
+            WARN("Miscompiling shader due to unhandled INTERP\n");
+            return;
+         }
+      }
+      sym[c] = insn->getSrc(0)->asSym();
+      op = insn->op;
+      mode = insn->ipa;
+   }
+
+   if (src.isIndirect(0)) {
+      // In the case where there's varying packing *and* indirect inputs going
+      // on, we're sunk.
+      assert(src.getFile() == TGSI_FILE_INPUT);
       ptr = fetchSrc(src.getIndirect(0), 0, NULL);
+   }
 
-   // XXX: no way to know interp mode if we don't know the index
-   linear = info->in[ptr ? 0 : src.getIndex(0)].linear;
-   if (linear) {
-      op = OP_LINTERP;
-      mode = NV50_IR_INTERP_LINEAR;
-   } else {
-      op = OP_PINTERP;
-      mode = NV50_IR_INTERP_PERSPECTIVE;
+   // We can assume that the fixed index will point to an input of the same
+   // interpolation type in case of an indirect.
+   if (src.getFile() == TGSI_FILE_INPUT) {
+      linear = info->in[src.getIndex(0)].linear;
+      if (linear) {
+         op = OP_LINTERP;
+         mode = NV50_IR_INTERP_LINEAR;
+      } else {
+         op = OP_PINTERP;
+         mode = NV50_IR_INTERP_PERSPECTIVE;
+      }
    }
 
    switch (tgsi.getOpcode()) {
@@ -2793,7 +2830,7 @@ Converter::handleINTERP(Value *dst[4])
 
 
    FOR_EACH_DST_ENABLED_CHANNEL(0, c, tgsi) {
-      insn = mkOp1(op, TYPE_F32, dst[c], srcToSym(src, c));
+      insn = mkOp1(op, TYPE_F32, dst[c], sym[c]);
       if (op == OP_PINTERP)
          insn->setSrc(1, w);
       if (ptr)
