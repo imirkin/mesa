@@ -429,6 +429,7 @@ nvc0_clear_buffer_push_nve4(struct pipe_context *pipe,
    unsigned count = (size + 3) / 4;
    unsigned data_words = data_size / 4;
 
+   IMMED_NVC0(push, NVC0_3D(UNK1944), 1);
    while (count) {
       unsigned nr_data = MIN2(count, NV04_PFIFO_MAX_PACKET_LEN) / data_words;
       unsigned nr = nr_data * data_words;
@@ -452,6 +453,7 @@ nvc0_clear_buffer_push_nve4(struct pipe_context *pipe,
       offset += nr * 4;
       size -= nr * 4;
    }
+   IMMED_NVC0(push, NVC0_3D(UNK1944), 0);
 
    if (buf->mm) {
       nouveau_fence_ref(nvc0->screen->base.fence.current, &buf->fence);

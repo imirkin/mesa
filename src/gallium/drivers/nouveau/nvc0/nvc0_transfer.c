@@ -227,6 +227,7 @@ nve4_p2mf_push_linear(struct nouveau_context *nv,
    nouveau_pushbuf_bufctx(push, nvc0->bufctx);
    nouveau_pushbuf_validate(push);
 
+   IMMED_NVC0(push, NVC0_3D(UNK1944), 1);
    while (count) {
       unsigned nr = MIN2(count, (NV04_PFIFO_MAX_PACKET_LEN - 1));
 
@@ -249,6 +250,7 @@ nve4_p2mf_push_linear(struct nouveau_context *nv,
       offset += nr * 4;
       size -= nr * 4;
    }
+   IMMED_NVC0(push, NVC0_3D(UNK1944), 0);
 
    nouveau_bufctx_reset(nvc0->bufctx, 0);
 }
