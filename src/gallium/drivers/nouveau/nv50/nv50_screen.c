@@ -201,6 +201,9 @@ nv50_screen_get_param(struct pipe_screen *pscreen, enum pipe_cap param)
       return 1;
    case PIPE_CAP_SEAMLESS_CUBE_MAP:
       return 1; /* class_3d >= NVA0_3D_CLASS; */
+   /* original nv50 didn't support adding BaseVertex to gl_VertexID */
+   case PIPE_CAP_VERTEXID_NOBASE:
+      return class_3d == NV50_3D_CLASS;
    /* supported on nva0+ */
    case PIPE_CAP_STREAM_OUTPUT_PAUSE_RESUME:
       return class_3d >= NVA0_3D_CLASS;
@@ -230,7 +233,6 @@ nv50_screen_get_param(struct pipe_screen *pscreen, enum pipe_cap param)
    case PIPE_CAP_DRAW_INDIRECT:
    case PIPE_CAP_MULTI_DRAW_INDIRECT:
    case PIPE_CAP_MULTI_DRAW_INDIRECT_PARAMS:
-   case PIPE_CAP_VERTEXID_NOBASE:
    case PIPE_CAP_MULTISAMPLE_Z_RESOLVE: /* potentially supported on some hw */
    case PIPE_CAP_RESOURCE_FROM_USER_MEMORY:
    case PIPE_CAP_DEVICE_RESET_STATUS_QUERY:
