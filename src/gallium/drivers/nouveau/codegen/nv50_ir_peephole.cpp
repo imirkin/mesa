@@ -50,6 +50,8 @@ Instruction::isNop() const
    }
 
    if (op == OP_MOV || op == OP_UNION) {
+      if (!defExists(0))
+         return true;
       if (!getDef(0)->equals(getSrc(0)))
          return false;
       if (op == OP_UNION)

@@ -26,6 +26,7 @@
 #include <algorithm>
 #include <stack>
 #include <limits>
+#include <vector>
 #if __cplusplus >= 201103L
 #include <unordered_map>
 #else
@@ -857,11 +858,11 @@ isShortRegVal(LValue *lval)
       return false;
    for (Value::DefCIterator def = lval->defs.begin();
         def != lval->defs.end(); ++def)
-      if (isShortRegOp((*def)->getInsn()))
+      if ((*def)->exists() && isShortRegOp((*def)->getInsn()))
          return true;
    for (Value::UseCIterator use = lval->uses.begin();
         use != lval->uses.end(); ++use)
-      if (isShortRegOp((*use)->getInsn()))
+      if ((*use)->exists() && isShortRegOp((*use)->getInsn()))
          return true;
    return false;
 }
@@ -946,6 +947,7 @@ GCRA::coalesceValues(Value *dst, Value *src, bool force)
    // add val's definitions to rep and extend the live interval of its RIG node
    rep->defs.insert(rep->defs.end(), val->defs.begin(), val->defs.end());
    nRep->livei.unify(nVal->livei);
+   nRep->degreeLimit = MIN2(nRep->degreeLimit, nVal->degreeLimit);
    return true;
 }
 
@@ -1721,25 +1723,30 @@ value_cmp(ValueRef *a, ValueRef *b) {
 bool
 SpillCodeInserter::run(const std::list<ValuePair>& lst)
 {
-   for (std::list<ValuePair>::const_iterator it = lst.begin(); it != lst.end();
-        ++it) {
-      LValue *lval = it->first->asLValue();
-      Symbol *mem = it->second ? it->second->asSym() : NULL;
-
       // Keep track of which instructions to delete later. Deleting them
       // inside the loop is unsafe since a single instruction may have
       // multiple destinations that all need to be spilled (like OP_SPLIT).
       unordered_set<Instruction *> to_del;
 
-      for (Value::DefIterator d = lval->defs.begin(); d != lval->defs.end();
-           ++d) {
+   for (std::list<ValuePair>::const_iterator it = lst.begin(); it != lst.end();
+        ++it) {
+      LValue *lval = it->first->asLValue();
+      Symbol *mem = it->second ? it->second->asSym() : NULL;
+
+      // We will be adding/removing defs of the lvalue as we spill/unspill
+      // it. That will in turn implicitly modify its defs list. As a result,
+      // keep an initial copy of the list so as not to rely on the value's.
+      std::vector<ValueDef *> defs(lval->defs.begin(), lval->defs.end());
+
+      for (size_t i = 0; i < defs.size(); i++) {
          Value *slot = mem ?
             static_cast<Value *>(mem) : new_LValue(func, FILE_GPR);
          Value *tmp = NULL;
          Instruction *last = NULL;
 
-         LValue *dval = (*d)->get()->asLValue();
-         Instruction *defi = (*d)->getInsn();
+         ValueDef *d = defs[i];
+         LValue *dval = d->get()->asLValue();
+         Instruction *defi = d->getInsn();
 
          // Sort all the uses by BB/instruction so that we don't unspill
          // multiple times in a row, and also remove a source of
@@ -1767,21 +1774,32 @@ SpillCodeInserter::run(const std::list<ValuePair>& lst)
 
          assert(defi);
          if (defi->isPseudo()) {
-            d = lval->defs.erase(d);
-            --d;
-            if (slot->reg.file == FILE_MEMORY_LOCAL)
-               to_del.insert(defi);
-            else
-               defi->setDef(0, slot);
+            if (slot->reg.file == FILE_MEMORY_LOCAL) {
+               d->set(NULL);
+// at this point, NO lvalue should be referring to this def
+#if 0
+         for (ArrayList::Iterator it = func->allLValues.iterator();
+              !it.end(); it.next()) {
+            Value *val = reinterpret_cast<Value *>(it.get())->asLValue();
+            for (Value::DefIterator def = val->defs.begin(); def != val->defs.end();
+                 ++def)
+               assert((*def)->getInsn() != defi);
+         }
+#endif
+
+               defi->bb->remove(defi);
+            } else
+               d->set(slot);
          } else {
             spill(defi, slot, dval);
          }
       }
-
+   }
+/*
       for (unordered_set<Instruction *>::const_iterator it = to_del.begin();
            it != to_del.end(); ++it)
          delete_Instruction(func->getProgram(), *it);
-   }
+*/
 
    // TODO: We're not trying to reuse old slots in a potential next iteration.
    //  We have to update the slots' livei intervals to be able to do that.

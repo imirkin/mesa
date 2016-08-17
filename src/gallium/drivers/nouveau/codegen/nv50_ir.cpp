@@ -153,10 +153,30 @@ ValueDef::set(Value *defVal)
 {
    if (value == defVal)
       return;
-   if (value)
+   if (value) {
+#if 1
+      Value::DefCIterator def;
+      for (def = value->defs.begin(); def != value->defs.end(); ++def)
+         if (*def == this)
+            break;
+      assert(def != value->defs.end());
+#endif
       value->defs.remove(this);
-   if (defVal)
+      if (value != value->join) {
+#if 1
+         for (def = value->join->defs.begin(); def != value->join->defs.end(); ++def)
+            if (*def == this)
+               break;
+         assert(def != value->join->defs.end());
+#endif
+         value->join->defs.remove(this);
+      }
+   }
+   if (defVal) {
       defVal->defs.push_back(this);
+      if (defVal != defVal->join)
+         defVal->join->defs.push_back(this);
+   }
 
    value = defVal;
 }
