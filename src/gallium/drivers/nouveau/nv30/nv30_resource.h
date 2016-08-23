@@ -36,6 +36,10 @@ struct nv30_miptree {
    unsigned ms_mode;
    unsigned ms_x:1;
    unsigned ms_y:1;
+
+   struct nv30_miptree *shadow;
+   uint16_t shadow_valid; /* which levels have valid data */
+   uint16_t shadow_dirty; /* which levels have updated data */
 };
 
 static inline struct nv30_miptree *
