@@ -456,6 +456,7 @@ nv20_context_create(struct nouveau_screen *screen, gl_api api,
 	if (!nouveau_context_init(ctx, api, screen, visual, share_ctx))
 		goto fail;
 
+	ctx->Extensions.ARB_texture_border_clamp = true;
 	ctx->Extensions.ARB_texture_env_crossbar = true;
 	ctx->Extensions.ARB_texture_env_combine = true;
 	ctx->Extensions.ARB_texture_env_dot3 = true;
