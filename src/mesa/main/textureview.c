@@ -387,8 +387,10 @@ target_valid(struct gl_context *ctx, GLenum origTarget, GLenum newTarget)
    switch (origTarget) {
    case GL_TEXTURE_1D:
    case GL_TEXTURE_1D_ARRAY:
-      RETURN_IF_SUPPORTED(TEXTURE_1D);
-      RETURN_IF_SUPPORTED(TEXTURE_1D_ARRAY);
+      if (!_mesa_is_gles3(ctx)) {
+         RETURN_IF_SUPPORTED(TEXTURE_1D);
+         RETURN_IF_SUPPORTED(TEXTURE_1D_ARRAY);
+      }
       break;
    case GL_TEXTURE_2D:
       RETURN_IF_SUPPORTED(TEXTURE_2D);
@@ -398,7 +400,8 @@ target_valid(struct gl_context *ctx, GLenum origTarget, GLenum newTarget)
       RETURN_IF_SUPPORTED(TEXTURE_3D);
       break;
    case GL_TEXTURE_RECTANGLE:
-      RETURN_IF_SUPPORTED(TEXTURE_RECTANGLE);
+      if (!_mesa_is_gles3(ctx))
+         RETURN_IF_SUPPORTED(TEXTURE_RECTANGLE);
       break;
    case GL_TEXTURE_CUBE_MAP:
    case GL_TEXTURE_2D_ARRAY:
@@ -514,7 +517,7 @@ _mesa_set_texture_view_state(struct gl_context *ctx,
 }
 
 /**
- * glTextureView (ARB_texture_view)
+ * glTextureView (ARB_texture_view / OES_texture_view)
  * If an error is found, record it with _mesa_error()
  * \return none.
  */
