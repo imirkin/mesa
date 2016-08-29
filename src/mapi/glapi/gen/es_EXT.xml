@@ -1142,6 +1142,21 @@
 
 </category>
 
+<category name="GL_OES_texture_view" number="218">
+
+   <function name="TextureViewOES" es2="3.1" alias="TextureView">
+      <param name="texture" type="GLuint"/>
+      <param name="target" type="GLenum"/>
+      <param name="origtexture" type="GLuint"/>
+      <param name="internalformat" type="GLenum"/>
+      <param name="minlevel" type="GLuint"/>
+      <param name="numlevels" type="GLuint"/>
+      <param name="minlayer" type="GLuint"/>
+      <param name="numlayers" type="GLuint"/>
+   </function>
+
+</category>
+
 <category name="GL_OES_draw_elements_base_vertex" number="219">
 
     <function name="DrawElementsBaseVertexOES" alias="DrawElementsBaseVertex"

@@ -2627,5 +2627,8 @@ const struct function gles31_functions_possible[] = {
    { "glDepthRangeIndexedfOES", 31, -1 },
    { "glGetFloati_vOES", 31, -1 },
 
+   /* GL_OES_texture_view */
+   { "glTextureViewOES", 31, -1 },
+
    { NULL, 0, -1 },
  };
