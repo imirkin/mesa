@@ -171,7 +171,7 @@ void ir_print_visitor::visit(ir_variable *ir)
 
    char loc[32] = {0};
    if (ir->data.location != -1)
-      snprintf(loc, sizeof(loc), "location=%i ", ir->data.location);
+      snprintf(loc, sizeof(loc), "location=%i comp=%i ", ir->data.location, ir->data.location_frac);
 
    char component[32] = {0};
    if (ir->data.explicit_component)
