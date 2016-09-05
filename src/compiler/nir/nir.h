@@ -1704,6 +1704,7 @@ typedef struct nir_shader_compiler_options {
    bool lower_fmod64;
    bool lower_bitfield_extract;
    bool lower_bitfield_insert;
+   bool lower_bitfield_insert_bfm_only;
    bool lower_uadd_carry;
    bool lower_usub_borrow;
    /** lowers fneg and ineg to fsub and isub. */

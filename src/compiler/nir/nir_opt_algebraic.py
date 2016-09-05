@@ -327,6 +327,13 @@ optimizations = [
               ('bfi', ('bfm', 'bits', 'offset'), 'insert', 'base')),
     'options->lower_bitfield_insert'),
 
+   (('bitfield_insert', 'base', 'insert', 'offset', 'bits'),
+    ('bcsel', ('ilt', 31, 'bits'), 'insert',
+              ('ior', ('iand', 'base', ('inot', ('bfm', 'bits', 'offset'))),
+                      ('iand', ('ishl', 'insert', 'offset'),
+                               ('bfm', 'bits', 'offset')))),
+    'options->lower_bitfield_insert_bfm_only'),
+
    (('ibitfield_extract', 'value', 'offset', 'bits'),
     ('bcsel', ('ilt', 31, 'bits'), 'value',
               ('ibfe', 'value', 'offset', 'bits')),

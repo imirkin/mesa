@@ -967,6 +967,9 @@ emit_alu(struct ir3_compile *ctx, nir_alu_instr *alu)
 	case nir_op_bitfield_reverse:
 		dst[0] = ir3_BFREV_B(b, src[0], 0);
 		break;
+	case nir_op_bfm:
+		dst[0] = ir3_MGEN_B(b, src[0], 0, src[1], 0);
+		break;
 
 	default:
 		compile_error(ctx, "Unhandled ALU op: %s\n",
