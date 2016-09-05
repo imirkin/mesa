@@ -51,6 +51,8 @@ static const nir_shader_compiler_options options = {
 		.lower_extract_byte = true,
 		.lower_extract_word = true,
 		.lower_bitfield_insert_bfm_only = true,
+		.lower_uadd_carry = true,
+		.lower_usub_borrow = true,
 };
 
 struct nir_shader *
