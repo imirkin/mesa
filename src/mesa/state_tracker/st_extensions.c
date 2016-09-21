@@ -1253,6 +1253,10 @@ void st_init_extensions(struct pipe_screen *screen,
       extensions->OES_geometry_shader &&
       extensions->ARB_texture_cube_map_array;
 
+   extensions->OES_texture_view =
+      extensions->ARB_ES3_1_compatibility &&
+      extensions->ARB_texture_view;
+
    extensions->OES_viewport_array =
       extensions->ARB_ES3_1_compatibility &&
       extensions->OES_geometry_shader &&
