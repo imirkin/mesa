@@ -580,8 +580,11 @@ nvc0_sp_state_create(struct pipe_context *pipe,
    if (cso->stream_output.num_outputs)
       prog->pipe.stream_output = cso->stream_output;
 
+   bool half_pixel_center = nvc0_context(pipe)->rast ?
+      nvc0_context(pipe)->rast->pipe.half_pixel_center : true;
    prog->translated = nvc0_program_translate(
-      prog, nvc0_context(pipe)->screen->base.device->chipset,
+      prog, half_pixel_center,
+      nvc0_context(pipe)->screen->base.device->chipset,
       &nouveau_context(pipe)->debug);
 
    return (void *)prog;
@@ -696,7 +699,7 @@ nvc0_cp_state_create(struct pipe_context *pipe,
    prog->pipe.tokens = tgsi_dup_tokens((const struct tgsi_token *)cso->prog);
 
    prog->translated = nvc0_program_translate(
-      prog, nvc0_context(pipe)->screen->base.device->chipset,
+      prog, true, nvc0_context(pipe)->screen->base.device->chipset,
       &nouveau_context(pipe)->debug);
 
    return (void *)prog;
