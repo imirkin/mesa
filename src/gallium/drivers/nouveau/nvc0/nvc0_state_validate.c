@@ -178,8 +178,9 @@ nvc0_validate_fb(struct nvc0_context *nvc0)
 
       BCTX_REFN(nvc0->bufctx_3d, 3D_FB, &mt->base, WR);
    } else {
-       BEGIN_NVC0(push, NVC0_3D(ZETA_ENABLE), 1);
-      PUSH_DATA (push, 0);
+      IMMED_NVC0(push, NVC0_3D(ZETA_ENABLE), 0);
+      IMMED_NVC0(push, NVC0_3D(ZETA_FORMAT),
+                 nvc0_format_table[PIPE_FORMAT_Z24X8_UNORM].rt);
    }
 
    if (nr_cbufs == 0 && !fb->zsbuf) {
