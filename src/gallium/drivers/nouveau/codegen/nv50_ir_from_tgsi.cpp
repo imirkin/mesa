@@ -1746,7 +1746,7 @@ Converter::translateInterpMode(const struct nv50_ir_varying *var, operation& op)
 Value *
 Converter::interpolate(tgsi::Instruction::SrcRegister src, int c, Value *ptr)
 {
-   const struct nv50_ir_varying *var = &info->in[ptr ? 0 : src.getIndex(0)];
+   const struct nv50_ir_varying *var = &info->in[src.getIndex(0)];
    operation op;
 
    // XXX: no way to know interpolation mode if we don't know what's accessed
