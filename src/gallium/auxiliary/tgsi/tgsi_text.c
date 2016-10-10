@@ -257,8 +257,13 @@ static boolean parse_float( const char **pcur, float *val )
             cur++;
       }
    }
-   if (!integral_part && !fractional_part)
+   if (!integral_part && !fractional_part) {
+      if (uprcase(*cur++) == 'N' &&
+          uprcase(*cur++) == 'A' &&
+          uprcase(*cur++) == 'N')
+         goto out;
       return FALSE;
+   }
    if (uprcase( *cur ) == 'E') {
       cur++;
       if (*cur == '-' || *cur == '+')
