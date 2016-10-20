@@ -637,10 +637,24 @@ ConstantFolding::expr(Instruction *i,
       }
       break;
    case OP_SLCT:
-      if (a->data.u32 != b->data.u32)
-         return;
-      res.data.u32 = a->data.u32;
-      break;
+      if (a->data.u32 == b->data.u32) {
+         res.data.u32 = a->data.u32;
+         break;
+      }
+      if ((a->data.u32 == 0 && b->data.u32 == 0xffffffff) ||
+          (b->data.u32 == 0 && a->data.u32 == 0xffffffff)) {
+         CmpInstruction *ci = i->asCmp();
+         i->op = OP_SET;
+         i->dType = TYPE_U32;
+         if (a->data.u32 == 0) {
+            ci->setCond = inverseCondCode(ci->setCond);
+            i->setSrc(1, i->getSrc(0));
+         }
+         i->setSrc(0, i->getSrc(2));
+         i->moveSources(3, -1);
+         ++foldCount;
+      }
+      return;
    case OP_EXTBF: {
       int offset = b->data.u32 & 0xff;
       int width = (b->data.u32 >> 8) & 0xff;
