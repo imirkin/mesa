@@ -3399,14 +3399,14 @@ CodeEmitterNVC0::prepareEmission(Function *func)
 {
    CodeEmitter::prepareEmission(func);
 
-   if (targ->hasSWSched)
+   if (targ->schedInterval)
       calculateSchedDataNVC0(targ, func);
 }
 
 CodeEmitterNVC0::CodeEmitterNVC0(const TargetNVC0 *target)
    : CodeEmitter(target),
      targNVC0(target),
-     writeIssueDelays(target->hasSWSched)
+     writeIssueDelays(target->schedInterval)
 {
    code = NULL;
    codeSize = codeSizeLimit = 0;

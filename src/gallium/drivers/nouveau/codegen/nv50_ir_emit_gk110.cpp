@@ -2653,14 +2653,14 @@ CodeEmitterGK110::prepareEmission(Function *func)
 
    CodeEmitter::prepareEmission(func);
 
-   if (targ->hasSWSched)
+   if (targ->schedInterval)
       calculateSchedDataNVC0(targ, func);
 }
 
 CodeEmitterGK110::CodeEmitterGK110(const TargetNVC0 *target)
    : CodeEmitter(target),
      targNVC0(target),
-     writeIssueDelays(target->hasSWSched)
+     writeIssueDelays(target->schedInterval)
 {
    code = NULL;
    codeSize = codeSizeLimit = 0;

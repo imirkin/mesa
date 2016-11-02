@@ -157,7 +157,7 @@ enum OpClass
 class Target
 {
 public:
-   Target(bool m, bool j, bool s) : hasJoin(m), joinAnterior(j), hasSWSched(s) { }
+   Target(bool m, bool j, int s) : hasJoin(m), joinAnterior(j), schedInterval(s) { }
    virtual ~Target() { }
 
    static Target *create(uint32_t chipset);
@@ -237,7 +237,7 @@ public:
 public:
    const bool hasJoin;      // true if instructions have a join modifier
    const bool joinAnterior; // true if join is executed before the op
-   const bool hasSWSched;   // true if code should provide scheduling data
+   const int  schedInterval; // how often code should provide scheduling data
 
    static const uint8_t operationSrcNr[];
    static const OpClass operationClass[];

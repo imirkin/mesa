@@ -34,7 +34,6 @@ public:
    virtual bool emitInstruction(Instruction *);
    virtual uint32_t getMinEncodingSize(const Instruction *) const;
 
-   virtual void prepareEmission(Program *);
    virtual void prepareEmission(Function *);
 
    inline void setProgramType(Program::Type pType) { progType = pType; }
@@ -3408,49 +3407,10 @@ CodeEmitterGM107::prepareEmission(Function *func)
    sched.run(func, true, true);
 }
 
-static inline uint32_t sizeToBundlesGM107(uint32_t size)
-{
-   return (size + 23) / 24;
-}
-
-void
-CodeEmitterGM107::prepareEmission(Program *prog)
-{
-   for (ArrayList::Iterator fi = prog->allFuncs.iterator();
-        !fi.end(); fi.next()) {
-      Function *func = reinterpret_cast<Function *>(fi.get());
-      func->binPos = prog->binSize;
-      prepareEmission(func);
-
-      // adjust sizes & positions for schedulding info:
-      if (prog->getTarget()->hasSWSched) {
-         uint32_t adjPos = func->binPos;
-         BasicBlock *bb = NULL;
-         for (int i = 0; i < func->bbCount; ++i) {
-            bb = func->bbArray[i];
-            int32_t adjSize = bb->binSize;
-            if (adjPos % 32) {
-               adjSize -= 32 - adjPos % 32;
-               if (adjSize < 0)
-                  adjSize = 0;
-            }
-            adjSize = bb->binSize + sizeToBundlesGM107(adjSize) * 8;
-            bb->binPos = adjPos;
-            bb->binSize = adjSize;
-            adjPos += adjSize;
-         }
-         if (bb)
-            func->binSize = adjPos - func->binPos;
-      }
-
-      prog->binSize += func->binSize;
-   }
-}
-
 CodeEmitterGM107::CodeEmitterGM107(const TargetGM107 *target)
    : CodeEmitter(target),
      targGM107(target),
-     writeIssueDelays(target->hasSWSched)
+     writeIssueDelays(target->schedInterval)
 {
    code = NULL;
    codeSize = codeSizeLimit = 0;

@@ -199,14 +199,17 @@ CodeEmitter::printBinary() const
    INFO("\n");
 }
 
-static inline uint32_t sizeToBundlesNVE4(uint32_t size)
+static inline uint32_t sizeToBundles(uint32_t size, uint32_t ops)
 {
-   return (size + 55) / 56;
+   uint32_t bytes = (ops - 1) * 8;
+   return (size + bytes - 1) / bytes;
 }
 
 void
 CodeEmitter::prepareEmission(Program *prog)
 {
+   const Target *target = prog->getTarget();
+   const uint32_t bytes = target->schedInterval * 8;
    for (ArrayList::Iterator fi = prog->allFuncs.iterator();
         !fi.end(); fi.next()) {
       Function *func = reinterpret_cast<Function *>(fi.get());
@@ -214,18 +217,19 @@ CodeEmitter::prepareEmission(Program *prog)
       prepareEmission(func);
 
       // adjust sizes & positions for schedulding info:
-      if (prog->getTarget()->hasSWSched) {
+      if (target->schedInterval) {
          uint32_t adjPos = func->binPos;
          BasicBlock *bb = NULL;
          for (int i = 0; i < func->bbCount; ++i) {
             bb = func->bbArray[i];
             int32_t adjSize = bb->binSize;
-            if (adjPos % 64) {
-               adjSize -= 64 - adjPos % 64;
+            if (adjPos % bytes) {
+               adjSize -= bytes - adjPos % bytes;
                if (adjSize < 0)
                   adjSize = 0;
             }
-            adjSize = bb->binSize + sizeToBundlesNVE4(adjSize) * 8;
+            adjSize = bb->binSize +
+               sizeToBundles(adjSize, target->schedInterval) * 8;
             bb->binPos = adjPos;
             bb->binSize = adjSize;
             adjPos += adjSize;
