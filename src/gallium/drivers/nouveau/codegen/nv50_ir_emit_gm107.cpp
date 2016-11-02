@@ -105,6 +105,7 @@ private:
    }
    inline void emitPDIV(int);
    inline void emitINV(int, const ValueRef &);
+   inline void emitTARG();
 
    void emitEXIT();
    void emitBRA();
@@ -498,6 +499,26 @@ CodeEmitterGM107::emitINV(int pos, const ValueRef &ref)
    emitField(pos, 1, !!(ref.mod & Modifier(NV50_IR_MOD_NOT)));
 }
 
+void
+CodeEmitterGM107::emitTARG()
+{
+   const FlowInstruction *insn = this->insn->asFlow();
+   if (insn->builtin) {
+      int pcAbs = targGM107->getBuiltinOffset(insn->target.builtin);
+      addReloc(RelocEntry::TYPE_BUILTIN, 0, pcAbs, 0xfff00000,  20);
+      addReloc(RelocEntry::TYPE_BUILTIN, 1, pcAbs, 0x000fffff, -12);
+      return;
+   }
+
+   int32_t pos = insn->target.bb->binPos;
+   if (writeIssueDelays && !(pos & 0x1f))
+      pos += 8;
+   if (!insn->absolute)
+      emitField(0x14, 24, pos - (codeSize + 8));
+   else
+      emitField(0x14, 32, pos);
+}
+
 /*******************************************************************************
  * control flow
  ******************************************************************************/
@@ -533,13 +554,7 @@ CodeEmitterGM107::emitBRA()
    emitCond5(0x00, CC_TR);
 
    if (!insn->srcExists(0) || insn->src(0).getFile() != FILE_MEMORY_CONST) {
-      int32_t pos = insn->target.bb->binPos;
-      if (writeIssueDelays && !(pos & 0x1f))
-         pos += 8;
-      if (!insn->absolute)
-         emitField(0x14, 24, pos - (codeSize + 8));
-      else
-         emitField(0x14, 32, pos);
+      emitTARG();
    } else {
       emitCBUF (0x24, gpr, 20, 16, 0, insn->src(0));
       emitField(0x05, 1, 1);
@@ -558,17 +573,7 @@ CodeEmitterGM107::emitCAL()
    }
 
    if (!insn->srcExists(0) || insn->src(0).getFile() != FILE_MEMORY_CONST) {
-      if (!insn->absolute)
-         emitField(0x14, 24, insn->target.bb->binPos - (codeSize + 8));
-      else {
-         if (insn->builtin) {
-            int pcAbs = targGM107->getBuiltinOffset(insn->target.builtin);
-            addReloc(RelocEntry::TYPE_BUILTIN, 0, pcAbs, 0xfff00000,  20);
-            addReloc(RelocEntry::TYPE_BUILTIN, 1, pcAbs, 0x000fffff, -12);
-         } else {
-            emitField(0x14, 32, insn->target.bb->binPos);
-         }
-      }
+      emitTARG();
    } else {
       emitCBUF (0x24, -1, 20, 16, 0, insn->src(0));
       emitField(0x05, 1, 1);
@@ -583,7 +588,7 @@ CodeEmitterGM107::emitPCNT()
    emitInsn(0xe2b00000, 0);
 
    if (!insn->srcExists(0) || insn->src(0).getFile() != FILE_MEMORY_CONST) {
-      emitField(0x14, 24, insn->target.bb->binPos - (codeSize + 8));
+      emitTARG();
    } else {
       emitCBUF (0x24, -1, 20, 16, 0, insn->src(0));
       emitField(0x05, 1, 1);
@@ -605,7 +610,7 @@ CodeEmitterGM107::emitPBK()
    emitInsn(0xe2a00000, 0);
 
    if (!insn->srcExists(0) || insn->src(0).getFile() != FILE_MEMORY_CONST) {
-      emitField(0x14, 24, insn->target.bb->binPos - (codeSize + 8));
+      emitTARG();
    } else {
       emitCBUF (0x24, -1, 20, 16, 0, insn->src(0));
       emitField(0x05, 1, 1);
@@ -627,7 +632,7 @@ CodeEmitterGM107::emitPRET()
    emitInsn(0xe2700000, 0);
 
    if (!insn->srcExists(0) || insn->src(0).getFile() != FILE_MEMORY_CONST) {
-      emitField(0x14, 24, insn->target.bb->binPos - (codeSize + 8));
+      emitTARG();
    } else {
       emitCBUF (0x24, -1, 20, 16, 0, insn->src(0));
       emitField(0x05, 1, 1);
@@ -649,7 +654,7 @@ CodeEmitterGM107::emitSSY()
    emitInsn(0xe2900000, 0);
 
    if (!insn->srcExists(0) || insn->src(0).getFile() != FILE_MEMORY_CONST) {
-      emitField(0x14, 24, insn->target.bb->binPos - (codeSize + 8));
+      emitTARG();
    } else {
       emitCBUF (0x24, -1, 20, 16, 0, insn->src(0));
       emitField(0x05, 1, 1);
