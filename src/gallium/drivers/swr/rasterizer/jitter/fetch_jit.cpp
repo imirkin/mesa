@@ -680,6 +680,18 @@ void FetchJit::ConvertFormat(SWR_FORMAT format, Value *texels[4])
             }
             continue;
         }
+        else if (info.type[c] == SWR_TYPE_FLOAT)
+        {
+            SWR_ASSERT(format == R11G11B10_FLOAT);
+
+            // These floats are exactly the same as 16-bit floats, except
+            // they're missing some mantissa bits (and a sign bit). It's easy
+            // enough to cast them to 16-bit floats, then expand to 32-bit.
+            texels[compIndex] = BITCAST(texels[compIndex], mSimdInt32Ty);
+            texels[compIndex] = SHL(texels[compIndex], VIMMED1(15 - info.bpc[c]));
+            // XXX this isn't quite right - needs to first reshuffle the data?
+            texels[compIndex] = CVTPH2PS(texels[compIndex]);
+        }
     }
 }
 
