@@ -151,17 +151,12 @@ HOTTILE* HotTileMgr::GetHotTile(SWR_CONTEXT* pContext, DRAW_CONTEXT* pDC, uint32
 
             if (hotTile.state == HOTTILE_CLEAR)
             {
-                if (attachment == SWR_ATTACHMENT_STENCIL)
-                    ClearStencilHotTile(&hotTile);
-                else if (attachment == SWR_ATTACHMENT_DEPTH)
-                    ClearDepthHotTile(&hotTile);
-                else
-                    ClearColorHotTile(&hotTile);
-
-                hotTile.state = HOTTILE_DIRTY;
+                pContext->pfnClearTile(GetPrivateState(pDC), attachment,
+                    x * KNOB_MACROTILE_X_DIM, y * KNOB_MACROTILE_Y_DIM,
+                    hotTile.renderTargetArrayIndex,
+                    (const float *)hotTile.clearData);
             }
-
-            if (hotTile.state == HOTTILE_DIRTY)
+            else if (hotTile.state == HOTTILE_DIRTY)
             {
                 pContext->pfnStoreTile(GetPrivateState(pDC), format, attachment,
                     x * KNOB_MACROTILE_X_DIM, y * KNOB_MACROTILE_Y_DIM, hotTile.renderTargetArrayIndex, hotTile.pBuffer);

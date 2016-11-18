@@ -357,16 +357,19 @@ void ProcessStoreTileBE(DRAW_CONTEXT *pDC, uint32_t workerId, uint32_t macroTile
     HOTTILE *pHotTile = pContext->pHotTileMgr->GetHotTileNoLoad(pContext, pDC, macroTile, attachment, false);
     if (pHotTile)
     {
-        // clear if clear is pending (i.e., not rendered to), then mark as dirty for store.
+        // clear the surface directly
         if (pHotTile->state == HOTTILE_CLEAR)
         {
-            PFN_CLEAR_TILES pfnClearTiles = sClearTilesTable[srcFormat];
-            SWR_ASSERT(pfnClearTiles != nullptr);
+            pContext->pfnClearTile(GetPrivateState(pDC), attachment,
+                x * KNOB_MACROTILE_X_DIM, y * KNOB_MACROTILE_Y_DIM,
+                pHotTile->renderTargetArrayIndex,
+                (const float *)pHotTile->clearData);
 
-            pfnClearTiles(pDC, attachment, macroTile, pHotTile->renderTargetArrayIndex, pHotTile->clearData, pDesc->rect);
+            // Since the state is effectively uninitialized, make sure that we
+            // reload any data.
+            pHotTile->state = HOTTILE_INVALID;
         }
-
-        if (pHotTile->state == HOTTILE_DIRTY || pDesc->postStoreTileState == (SWR_TILE_STATE)HOTTILE_DIRTY)
+        else if (pHotTile->state == HOTTILE_DIRTY || pDesc->postStoreTileState == (SWR_TILE_STATE)HOTTILE_DIRTY)
         {
             int32_t destX = KNOB_MACROTILE_X_DIM * x;
             int32_t destY = KNOB_MACROTILE_Y_DIM * y;
