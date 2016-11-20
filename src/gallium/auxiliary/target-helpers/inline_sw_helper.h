@@ -55,6 +55,9 @@ sw_screen_create_named(struct sw_winsys *winsys, const char *driver)
       screen = swr_create_screen(winsys);
 #endif
 
+   if (screen)
+      screen = debug_screen_wrap(screen);
+
    return screen;
 }
 
