@@ -2326,6 +2326,50 @@ emit_query_availability(struct anv_cmd_buffer *cmd_buffer,
    }
 }
 
+#define IA_VERTICES_COUNT               0x2310
+#define IA_PRIMITIVES_COUNT             0x2318
+#define VS_INVOCATION_COUNT             0x2320
+#define HS_INVOCATION_COUNT             0x2300
+#define DS_INVOCATION_COUNT             0x2308
+#define GS_INVOCATION_COUNT             0x2328
+#define GS_PRIMITIVES_COUNT             0x2330
+#define CL_INVOCATION_COUNT             0x2338
+#define CL_PRIMITIVES_COUNT             0x2340
+#define PS_INVOCATION_COUNT             0x2348
+#define CS_INVOCATION_COUNT             0x2290
+
+static const uint32_t PIPELINE_STAT_TO_REG[] = {
+   IA_VERTICES_COUNT,
+   IA_PRIMITIVES_COUNT,
+   VS_INVOCATION_COUNT,
+   GS_INVOCATION_COUNT,
+   GS_PRIMITIVES_COUNT,
+   CL_INVOCATION_COUNT,
+   CL_PRIMITIVES_COUNT,
+   PS_INVOCATION_COUNT,
+   HS_INVOCATION_COUNT,
+   DS_INVOCATION_COUNT,
+   CS_INVOCATION_COUNT
+};
+
+static void
+emit_pipeline_stat(struct anv_cmd_buffer *cmd_buffer, uint32_t stat,
+                   struct anv_bo *bo, uint32_t offset) {
+   STATIC_ASSERT(ARRAY_SIZE(PIPELINE_STAT_TO_REG) ==
+                 ANV_PIPELINE_STATISTICS_COUNT);
+
+   uint32_t reg = PIPELINE_STAT_TO_REG[stat];
+
+   anv_batch_emit(&cmd_buffer->batch, GENX(MI_STORE_REGISTER_MEM), lrm) {
+      lrm.RegisterAddress  = reg,
+      lrm.MemoryAddress    = (struct anv_address) { bo, offset };
+   }
+   anv_batch_emit(&cmd_buffer->batch, GENX(MI_STORE_REGISTER_MEM), lrm) {
+      lrm.RegisterAddress  = reg + 4,
+      lrm.MemoryAddress    = (struct anv_address) { bo, offset + 4 };
+   }
+}
+
 void genX(CmdBeginQuery)(
     VkCommandBuffer                             commandBuffer,
     VkQueryPool                                 queryPool,
@@ -2355,7 +2399,25 @@ void genX(CmdBeginQuery)(
                           query * sizeof(struct anv_query_pool_slot));
       break;
 
-   case VK_QUERY_TYPE_PIPELINE_STATISTICS:
+   case VK_QUERY_TYPE_PIPELINE_STATISTICS: {
+      uint32_t pipeline_statistics = pool->pipeline_statistics;
+      uint32_t slot_offset = query * pool->slot_stride *
+         sizeof(struct anv_query_pool_slot);
+
+      /* TODO: This might only be necessary for certain stats */
+      anv_batch_emit(&cmd_buffer->batch, GENX(PIPE_CONTROL), pc) {
+         pc.CommandStreamerStallEnable = true;
+         pc.StallAtPixelScoreboard = true;
+      }
+
+      while (pipeline_statistics) {
+         uint32_t stat = u_bit_scan(&pipeline_statistics);
+
+         emit_pipeline_stat(cmd_buffer, stat, &pool->bo, slot_offset);
+         slot_offset += sizeof(struct anv_query_pool_slot);
+      }
+      break;
+   }
    default:
       unreachable("");
    }
@@ -2368,17 +2430,35 @@ void genX(CmdEndQuery)(
 {
    ANV_FROM_HANDLE(anv_cmd_buffer, cmd_buffer, commandBuffer);
    ANV_FROM_HANDLE(anv_query_pool, pool, queryPool);
+   uint32_t slot_offset = query * pool->slot_stride *
+      sizeof(struct anv_query_pool_slot);
 
    switch (pool->type) {
    case VK_QUERY_TYPE_OCCLUSION:
-      emit_ps_depth_count(cmd_buffer, &pool->bo,
-                          query * sizeof(struct anv_query_pool_slot) + 8);
-
-      emit_query_availability(cmd_buffer, &pool->bo,
-                              query * sizeof(struct anv_query_pool_slot) + 16);
+      emit_ps_depth_count(cmd_buffer, &pool->bo, slot_offset + 8);
+      emit_query_availability(cmd_buffer, &pool->bo, slot_offset + 16);
       break;
 
-   case VK_QUERY_TYPE_PIPELINE_STATISTICS:
+   case VK_QUERY_TYPE_PIPELINE_STATISTICS: {
+      uint32_t pipeline_statistics = pool->pipeline_statistics;
+      /* TODO: This might only be necessary for certain stats */
+      anv_batch_emit(&cmd_buffer->batch, GENX(PIPE_CONTROL), pc) {
+         pc.CommandStreamerStallEnable = true;
+         pc.StallAtPixelScoreboard = true;
+      }
+
+      while (pipeline_statistics) {
+         uint32_t stat = u_bit_scan(&pipeline_statistics);
+
+         emit_pipeline_stat(cmd_buffer, stat, &pool->bo, slot_offset + 8);
+         slot_offset += sizeof(struct anv_query_pool_slot);
+      }
+
+      slot_offset -= sizeof(struct anv_query_pool_slot);
+      emit_query_availability(cmd_buffer, &pool->bo, slot_offset + 16);
+      break;
+   }
+
    default:
       unreachable("");
    }
@@ -2475,6 +2555,31 @@ emit_load_alu_reg_u64(struct anv_batch *batch, uint32_t reg,
 }
 
 static void
+emit_load_alu_reg_imm32(struct anv_batch *batch, uint32_t reg, uint32_t imm)
+{
+   anv_batch_emit(batch, GENX(MI_LOAD_REGISTER_IMM), lri) {
+      lri.RegisterOffset   = reg;
+      lri.DataDWord        = imm;
+   }
+}
+
+static void
+emit_load_alu_reg_imm64(struct anv_batch *batch, uint32_t reg, uint64_t imm)
+{
+   emit_load_alu_reg_imm32(batch, reg, (uint32_t)imm);
+   emit_load_alu_reg_imm32(batch, reg + 4, (uint32_t)(imm >> 32));
+}
+
+static void
+emit_load_alu_reg_reg32(struct anv_batch *batch, uint32_t src, uint32_t dst)
+{
+   anv_batch_emit(batch, GENX(MI_LOAD_REGISTER_REG), lrr) {
+      lrr.SourceRegisterAddress      = src;
+      lrr.DestinationRegisterAddress = dst;
+   }
+}
+
+static uint32_t
 store_query_result(struct anv_batch *batch, uint32_t reg,
                    struct anv_bo *bo, uint32_t offset, VkQueryResultFlags flags)
 {
@@ -2488,7 +2593,86 @@ store_query_result(struct anv_batch *batch, uint32_t reg,
          srm.RegisterAddress  = reg + 4;
          srm.MemoryAddress    = (struct anv_address) { bo, offset + 4 };
       }
+
+      return offset + 8;
    }
+
+   return offset + 4;
+}
+
+/*
+ * GPR0 = GPR0 & ((1ull << n) - 1);
+ */
+static void
+keep_gpr0_lower_n_bits(struct anv_batch *batch, uint32_t n)
+{
+   assert(n < 64);
+   emit_load_alu_reg_imm64(batch, CS_GPR(1), (1ull << n) - 1);
+
+   uint32_t *dw = anv_batch_emitn(batch, 5, GENX(MI_MATH));
+   dw[1] = alu(OPCODE_LOAD, OPERAND_SRCA, OPERAND_R0);
+   dw[2] = alu(OPCODE_LOAD, OPERAND_SRCB, OPERAND_R1);
+   dw[3] = alu(OPCODE_AND, 0, 0);
+   dw[4] = alu(OPCODE_STORE, OPERAND_R0, OPERAND_ACCU);
+}
+
+/*
+ * GPR0 = GPR0 << 30;
+ */
+static void
+shl_gpr0_by_30_bits(struct anv_batch *batch)
+{
+   /* First we mask 34 bits of GPR0 to prevent overflow */
+   keep_gpr0_lower_n_bits(batch, 34);
+
+   const uint32_t outer_count = 5;
+   const uint32_t inner_count = 6;
+   STATIC_ASSERT(outer_count * inner_count == 30);
+   const uint32_t cmd_len = 1 + inner_count * 4;
+
+   /* We'll emit 5 commands, each shifting GPR0 left by 6 bits, for a total of
+    * 30 left shifts.
+    */
+   for (int o = 0; o < outer_count; o++) {
+      /* Submit one MI_MATH to shift left by 6 bits */
+      uint32_t *dw = anv_batch_emitn(batch, cmd_len, GENX(MI_MATH));
+      dw++;
+      for (int i = 0; i < inner_count; i++, dw += 4) {
+         dw[0] = alu(OPCODE_LOAD, OPERAND_SRCA, OPERAND_R0);
+         dw[1] = alu(OPCODE_LOAD, OPERAND_SRCB, OPERAND_R0);
+         dw[2] = alu(OPCODE_ADD, 0, 0);
+         dw[3] = alu(OPCODE_STORE, OPERAND_R0, OPERAND_ACCU);
+      }
+   }
+}
+
+/*
+ * GPR0 = GPR0 >> 2;
+ *
+ * Note that the upper 30 bits of GPR are lost!
+ */
+static void
+shr_gpr0_by_2_bits(struct anv_batch *batch)
+{
+   shl_gpr0_by_30_bits(batch);
+   emit_load_alu_reg_reg32(batch, CS_GPR(0) + 4, CS_GPR(0));
+   emit_load_alu_reg_imm32(batch, CS_GPR(0) + 4, 0);
+}
+
+static void
+compute_query_result(struct anv_batch *batch, struct anv_bo *bo,
+                     uint32_t dst_reg, uint32_t offset)
+{
+   emit_load_alu_reg_u64(batch, CS_GPR(0), bo, offset);
+   emit_load_alu_reg_u64(batch, CS_GPR(1), bo, offset + 8);
+
+   /* FIXME: We need to clamp the result for 32 bit. */
+
+   uint32_t *dw = anv_batch_emitn(batch, 5, GENX(MI_MATH));
+   dw[1] = alu(OPCODE_LOAD, OPERAND_SRCA, OPERAND_R1);
+   dw[2] = alu(OPCODE_LOAD, OPERAND_SRCB, OPERAND_R0);
+   dw[3] = alu(OPCODE_SUB, 0, 0);
+   dw[4] = alu(OPCODE_STORE, dst_reg, OPERAND_ACCU);
 }
 
 void genX(CmdCopyQueryPoolResults)(
@@ -2513,50 +2697,64 @@ void genX(CmdCopyQueryPoolResults)(
       }
    }
 
-   dst_offset = buffer->offset + destOffset;
    for (uint32_t i = 0; i < queryCount; i++) {
-
+      dst_offset = buffer->offset + destOffset + destStride * i;
       slot_offset = (firstQuery + i) * sizeof(struct anv_query_pool_slot);
       switch (pool->type) {
       case VK_QUERY_TYPE_OCCLUSION:
-         emit_load_alu_reg_u64(&cmd_buffer->batch,
-                               CS_GPR(0), &pool->bo, slot_offset);
-         emit_load_alu_reg_u64(&cmd_buffer->batch,
-                               CS_GPR(1), &pool->bo, slot_offset + 8);
-
-         /* FIXME: We need to clamp the result for 32 bit. */
-
-         uint32_t *dw = anv_batch_emitn(&cmd_buffer->batch, 5, GENX(MI_MATH));
-         dw[1] = alu(OPCODE_LOAD, OPERAND_SRCA, OPERAND_R1);
-         dw[2] = alu(OPCODE_LOAD, OPERAND_SRCB, OPERAND_R0);
-         dw[3] = alu(OPCODE_SUB, 0, 0);
-         dw[4] = alu(OPCODE_STORE, OPERAND_R2, OPERAND_ACCU);
+         compute_query_result(&cmd_buffer->batch, &pool->bo, OPERAND_R2,
+                              slot_offset);
+         dst_offset = store_query_result(
+               &cmd_buffer->batch,
+               CS_GPR(2), buffer->bo, dst_offset, flags);
          break;
 
       case VK_QUERY_TYPE_TIMESTAMP:
          emit_load_alu_reg_u64(&cmd_buffer->batch,
                                CS_GPR(2), &pool->bo, slot_offset);
+         dst_offset = store_query_result(
+               &cmd_buffer->batch,
+               CS_GPR(2), buffer->bo, dst_offset, flags);
          break;
 
+      case VK_QUERY_TYPE_PIPELINE_STATISTICS: {
+         uint32_t pipeline_statistics = pool->pipeline_statistics;
+
+         slot_offset *= pool->slot_stride;
+         while (pipeline_statistics) {
+            uint32_t stat = u_bit_scan(&pipeline_statistics);
+
+            compute_query_result(&cmd_buffer->batch, &pool->bo, OPERAND_R0,
+                                 slot_offset);
+
+            /* WaDividePSInvocationCountBy4:HSW,BDW */
+            if ((cmd_buffer->device->info.gen == 8 ||
+                 cmd_buffer->device->info.is_haswell) &&
+                (1 << stat) == VK_QUERY_PIPELINE_STATISTIC_FRAGMENT_SHADER_INVOCATIONS_BIT) {
+               shr_gpr0_by_2_bits(&cmd_buffer->batch);
+            }
+            dst_offset = store_query_result(
+                  &cmd_buffer->batch,
+                  CS_GPR(0), buffer->bo, dst_offset, flags);
+            slot_offset += sizeof(struct anv_query_pool_slot);
+         }
+
+         /* Get the slot offset to where it's supposed to be for the
+          * availability bit.
+          */
+         slot_offset -= sizeof(struct anv_query_pool_slot);
+         break;
+      }
       default:
          unreachable("unhandled query type");
       }
 
-      store_query_result(&cmd_buffer->batch,
-                         CS_GPR(2), buffer->bo, dst_offset, flags);
-
       if (flags & VK_QUERY_RESULT_WITH_AVAILABILITY_BIT) {
          emit_load_alu_reg_u64(&cmd_buffer->batch, CS_GPR(0),
                                &pool->bo, slot_offset + 16);
-         if (flags & VK_QUERY_RESULT_64_BIT)
-            store_query_result(&cmd_buffer->batch,
-                               CS_GPR(0), buffer->bo, dst_offset + 8, flags);
-         else
-            store_query_result(&cmd_buffer->batch,
-                               CS_GPR(0), buffer->bo, dst_offset + 4, flags);
+         store_query_result(&cmd_buffer->batch,
+                            CS_GPR(0), buffer->bo, dst_offset, flags);
       }
-
-      dst_offset += destStride;
    }
 }
 

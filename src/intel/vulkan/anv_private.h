@@ -1756,6 +1756,8 @@ struct anv_render_pass {
    struct anv_subpass                           subpasses[0];
 };
 
+#define ANV_PIPELINE_STATISTICS_COUNT 11
+
 struct anv_query_pool_slot {
    uint64_t begin;
    uint64_t end;
@@ -1765,6 +1767,8 @@ struct anv_query_pool_slot {
 struct anv_query_pool {
    VkQueryType                                  type;
    uint32_t                                     slots;
+   uint32_t                                     pipeline_statistics;
+   uint32_t                                     slot_stride;
    struct anv_bo                                bo;
 };
 

@@ -38,8 +38,10 @@ VkResult anv_CreateQueryPool(
    ANV_FROM_HANDLE(anv_device, device, _device);
    struct anv_query_pool *pool;
    VkResult result;
-   uint32_t slot_size;
-   uint64_t size;
+   uint32_t slot_size = sizeof(struct anv_query_pool_slot);
+   uint32_t slot_stride = 1;
+   uint64_t size = pCreateInfo->queryCount * slot_size;
+   uint32_t pipeline_statistics = 0;
 
    assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO);
 
@@ -48,12 +50,16 @@ VkResult anv_CreateQueryPool(
    case VK_QUERY_TYPE_TIMESTAMP:
       break;
    case VK_QUERY_TYPE_PIPELINE_STATISTICS:
-      return VK_ERROR_INCOMPATIBLE_DRIVER;
+      pipeline_statistics = pCreateInfo->pipelineStatistics &
+         ((1 << ANV_PIPELINE_STATISTICS_COUNT) - 1);
+      slot_stride = _mesa_bitcount(pipeline_statistics);
+      size *= slot_stride;
+      break;
    default:
       assert(!"Invalid query type");
+      return VK_ERROR_INCOMPATIBLE_DRIVER;
    }
 
-   slot_size = sizeof(struct anv_query_pool_slot);
    pool = vk_alloc2(&device->alloc, pAllocator, sizeof(*pool), 8,
                      VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
    if (pool == NULL)
@@ -61,8 +67,9 @@ VkResult anv_CreateQueryPool(
 
    pool->type = pCreateInfo->queryType;
    pool->slots = pCreateInfo->queryCount;
+   pool->pipeline_statistics = pipeline_statistics;
+   pool->slot_stride = slot_stride;
 
-   size = pCreateInfo->queryCount * slot_size;
    result = anv_bo_init_new(&pool->bo, device, size);
    if (result != VK_SUCCESS)
       goto fail;
@@ -95,6 +102,27 @@ void anv_DestroyQueryPool(
    vk_free2(&device->alloc, pAllocator, pool);
 }
 
+static void *
+store_query_result(void *pData, VkQueryResultFlags flags,
+                   uint64_t result, uint64_t available)
+{
+   if (flags & VK_QUERY_RESULT_64_BIT) {
+      uint64_t *dst = pData;
+      *dst++ = result;
+      if (flags & VK_QUERY_RESULT_WITH_AVAILABILITY_BIT)
+         *dst++ = available;
+      return dst;
+   } else {
+      uint32_t *dst = pData;
+      if (result > UINT32_MAX)
+         result = UINT32_MAX;
+      *dst++ = result;
+      if (flags & VK_QUERY_RESULT_WITH_AVAILABILITY_BIT)
+         *dst++ = available;
+      return dst;
+   }
+}
+
 VkResult anv_GetQueryPoolResults(
     VkDevice                                    _device,
     VkQueryPool                                 queryPool,
@@ -112,6 +140,7 @@ VkResult anv_GetQueryPoolResults(
    int ret;
 
    assert(pool->type == VK_QUERY_TYPE_OCCLUSION ||
+          pool->type == VK_QUERY_TYPE_PIPELINE_STATISTICS ||
           pool->type == VK_QUERY_TYPE_TIMESTAMP);
 
    if (pData == NULL)
@@ -129,14 +158,42 @@ VkResult anv_GetQueryPoolResults(
    void *data_end = pData + dataSize;
    struct anv_query_pool_slot *slot = pool->bo.map;
 
-   for (uint32_t i = 0; i < queryCount; i++) {
+   for (uint32_t i = 0; i < queryCount && pData < data_end;
+        i++, pData += stride) {
+      if (pool->type == VK_QUERY_TYPE_PIPELINE_STATISTICS) {
+         VkQueryResultFlags f = flags & ~VK_QUERY_RESULT_WITH_AVAILABILITY_BIT;
+         void *pos = pData;
+         uint32_t pipeline_statistics = pool->pipeline_statistics;
+         struct anv_query_pool_slot *base =
+            &slot[(firstQuery + i) * pool->slot_stride];
+
+         while (pipeline_statistics) {
+            uint32_t stat = u_bit_scan(&pipeline_statistics);
+            uint64_t result = base->end - base->begin;
+
+            /* WaDividePSInvocationCountBy4:HSW,BDW */
+            if ((device->info.gen == 8 || device->info.is_haswell) &&
+                (1 << stat) == VK_QUERY_PIPELINE_STATISTIC_FRAGMENT_SHADER_INVOCATIONS_BIT)
+               result >>= 2;
+
+            pos = store_query_result(pos, f, result, 0);
+            base++;
+         }
+         if (flags & VK_QUERY_RESULT_WITH_AVAILABILITY_BIT) {
+            base--;
+            if (flags & VK_QUERY_RESULT_64_BIT)
+               *(uint64_t *)pos = base->available;
+            else
+               *(uint32_t *)pos = base->available;
+         }
+         continue;
+      }
+
       switch (pool->type) {
       case VK_QUERY_TYPE_OCCLUSION: {
          result = slot[firstQuery + i].end - slot[firstQuery + i].begin;
          break;
       }
-      case VK_QUERY_TYPE_PIPELINE_STATISTICS:
-         unreachable("pipeline stats not supported");
       case VK_QUERY_TYPE_TIMESTAMP: {
          result = slot[firstQuery + i].begin;
          break;
@@ -145,23 +202,7 @@ VkResult anv_GetQueryPoolResults(
          unreachable("invalid pool type");
       }
 
-      if (flags & VK_QUERY_RESULT_64_BIT) {
-         uint64_t *dst = pData;
-         dst[0] = result;
-         if (flags & VK_QUERY_RESULT_WITH_AVAILABILITY_BIT)
-            dst[1] = slot[firstQuery + i].available;
-      } else {
-         uint32_t *dst = pData;
-         if (result > UINT32_MAX)
-            result = UINT32_MAX;
-         dst[0] = result;
-         if (flags & VK_QUERY_RESULT_WITH_AVAILABILITY_BIT)
-            dst[1] = slot[firstQuery + i].available;
-      }
-
-      pData += stride;
-      if (pData >= data_end)
-         break;
+      store_query_result(pData, flags, result, slot[firstQuery + i].available);
    }
 
    return VK_SUCCESS;
@@ -181,6 +222,14 @@ void anv_CmdResetQueryPool(
       case VK_QUERY_TYPE_TIMESTAMP: {
          struct anv_query_pool_slot *slot = pool->bo.map;
          slot[firstQuery + i].available = 0;
+         break;
+      }
+      case VK_QUERY_TYPE_PIPELINE_STATISTICS: {
+         struct anv_query_pool_slot *slot = pool->bo.map;
+
+         slot = &slot[(firstQuery + i) * pool->slot_stride];
+         for (uint32_t j = 0; j < pool->slot_stride; j++)
+            slot[j].available = 0;
          break;
       }
       default:
