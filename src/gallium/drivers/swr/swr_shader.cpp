@@ -49,7 +49,7 @@
 using namespace SwrJit;
 
 static unsigned
-locate_linkage(ubyte name, ubyte index, struct tgsi_shader_info *info);
+locate_linkage(ubyte name, ubyte index, const struct tgsi_shader_info *info);
 
 bool operator==(const swr_jit_fs_key &lhs, const swr_jit_fs_key &rhs)
 {
@@ -171,15 +171,17 @@ struct BuilderSWR : public Builder {
    }
 
    struct gallivm_state *gallivm;
-   PFN_VERTEX_FUNC CompileVS(struct swr_context *ctx, swr_jit_vs_key &key);
-   PFN_PIXEL_KERNEL CompileFS(struct swr_context *ctx, swr_jit_fs_key &key);
+   PFN_VERTEX_FUNC CompileVS(const struct swr_vertex_shader *swr_vs,
+                             const swr_jit_vs_key &key);
+   PFN_PIXEL_KERNEL CompileFS(struct swr_fragment_shader *swr_fs,
+                              const struct swr_vertex_shader *swr_vs,
+                              const swr_jit_fs_key &key);
 };
 
 PFN_VERTEX_FUNC
-BuilderSWR::CompileVS(struct swr_context *ctx, swr_jit_vs_key &key)
+BuilderSWR::CompileVS(const struct swr_vertex_shader *swr_vs,
+                      const swr_jit_vs_key &key)
 {
-   struct swr_vertex_shader *swr_vs = ctx->vs;
-
    LLVMValueRef inputs[PIPE_MAX_SHADER_INPUTS][TGSI_NUM_CHANNELS];
    LLVMValueRef outputs[PIPE_MAX_SHADER_OUTPUTS][TGSI_NUM_CHANNELS];
 
@@ -274,9 +276,9 @@ BuilderSWR::CompileVS(struct swr_context *ctx, swr_jit_vs_key &key)
       }
    }
 
-   if (ctx->rasterizer->clip_plane_enable ||
+   if (key.clip_plane_mask ||
        swr_vs->info.base.culldist_writemask) {
-      unsigned clip_mask = ctx->rasterizer->clip_plane_enable;
+      unsigned clip_mask = key.clip_plane_mask;
 
       unsigned cv = 0;
       if (swr_vs->info.base.writes_clipvertex) {
@@ -357,14 +359,14 @@ swr_compile_vs(struct swr_context *ctx, swr_jit_vs_key &key)
    BuilderSWR builder(
       reinterpret_cast<JitManager *>(swr_screen(ctx->pipe.screen)->hJitMgr),
       "VS");
-   PFN_VERTEX_FUNC func = builder.CompileVS(ctx, key);
+   PFN_VERTEX_FUNC func = builder.CompileVS(ctx->vs, key);
 
    ctx->vs->map.insert(std::make_pair(key, make_unique<VariantVS>(builder.gallivm, func)));
    return func;
 }
 
 static unsigned
-locate_linkage(ubyte name, ubyte index, struct tgsi_shader_info *info)
+locate_linkage(ubyte name, ubyte index, const struct tgsi_shader_info *info)
 {
    for (int i = 0; i < PIPE_MAX_SHADER_OUTPUTS; i++) {
       if ((info->output_semantic_name[i] == name)
@@ -377,10 +379,10 @@ locate_linkage(ubyte name, ubyte index, struct tgsi_shader_info *info)
 }
 
 PFN_PIXEL_KERNEL
-BuilderSWR::CompileFS(struct swr_context *ctx, swr_jit_fs_key &key)
+BuilderSWR::CompileFS(struct swr_fragment_shader *swr_fs,
+                      const struct swr_vertex_shader *swr_vs,
+                      const swr_jit_fs_key &key)
 {
-   struct swr_fragment_shader *swr_fs = ctx->fs;
-
    LLVMValueRef inputs[PIPE_MAX_SHADER_INPUTS][TGSI_NUM_CHANNELS];
    LLVMValueRef outputs[PIPE_MAX_SHADER_OUTPUTS][TGSI_NUM_CHANNELS];
 
@@ -515,11 +517,11 @@ BuilderSWR::CompileFS(struct swr_context *ctx, swr_jit_fs_key &key)
       }
 
       unsigned linkedAttrib =
-         locate_linkage(semantic_name, semantic_idx, &ctx->vs->info.base);
+         locate_linkage(semantic_name, semantic_idx, &swr_vs->info.base);
       if (semantic_name == TGSI_SEMANTIC_GENERIC &&
           key.sprite_coord_enable & (1 << semantic_idx)) {
          /* we add an extra attrib to the backendState in swr_update_derived. */
-         linkedAttrib = ctx->vs->info.base.num_outputs - 1;
+         linkedAttrib = swr_vs->info.base.num_outputs - 1;
          swr_fs->pointSpriteMask |= (1 << linkedAttrib);
       } else if (linkedAttrib == 0xFFFFFFFF) {
          inputs[attrib][0] = wrap(VIMMED1(0.0f));
@@ -543,7 +545,7 @@ BuilderSWR::CompileFS(struct swr_context *ctx, swr_jit_fs_key &key)
       Value *offset = NULL;
       if (semantic_name == TGSI_SEMANTIC_COLOR && key.light_twoside) {
          bcolorAttrib = locate_linkage(
-               TGSI_SEMANTIC_BCOLOR, semantic_idx, &ctx->vs->info.base);
+               TGSI_SEMANTIC_BCOLOR, semantic_idx, &swr_vs->info.base);
          /* Neither front nor back colors were available. Nothing to load. */
          if (bcolorAttrib == 0xFFFFFFFF && linkedAttrib == 0xFFFFFFFF)
             continue;
@@ -719,7 +721,7 @@ swr_compile_fs(struct swr_context *ctx, swr_jit_fs_key &key)
    BuilderSWR builder(
       reinterpret_cast<JitManager *>(swr_screen(ctx->pipe.screen)->hJitMgr),
       "FS");
-   PFN_PIXEL_KERNEL func = builder.CompileFS(ctx, key);
+   PFN_PIXEL_KERNEL func = builder.CompileFS(ctx->fs, ctx->vs, key);
 
    ctx->fs->map.insert(std::make_pair(key, make_unique<VariantFS>(builder.gallivm, func)));
    return func;
