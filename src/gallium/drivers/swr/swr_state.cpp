@@ -682,9 +682,9 @@ swr_update_resource_status(struct pipe_context *pipe,
 
    /* transform feedback buffers */
    for (uint32_t i = 0; i < ctx->num_so_targets; i++) {
-      struct pipe_stream_output_target *target = ctx->so_targets[i];
-      if (target && target->buffer)
-         swr_resource_write(target->buffer);
+      struct swr_stream_output_target *target = ctx->so_targets[i];
+      if (target && target->pipe.buffer)
+         swr_resource_write(target->pipe.buffer);
    }
 
    /* texture sampler views */
@@ -1482,20 +1482,26 @@ swr_update_derived(struct pipe_context *pipe,
 
       pipe_stream_output_info *stream_output = &ctx->vs->pipe.stream_output;
 
-      for (uint32_t i = 0; i < ctx->num_so_targets; i++) {
+      for (uint32_t i = 0; i < 4; i++) {
          SWR_STREAMOUT_BUFFER buffer = {0};
-         if (!ctx->so_targets[i])
-            continue;
-         buffer.enable = true;
-         buffer.pBuffer =
-            (uint32_t *)(swr_resource_data(ctx->so_targets[i]->buffer) +
-                         ctx->so_targets[i]->buffer_offset);
-         buffer.bufferSize = ctx->so_targets[i]->buffer_size >> 2;
-         buffer.pitch = stream_output->stride[i];
-         buffer.streamOffset = 0;
+         struct swr_stream_output_target *target = ctx->so_targets[i];
+         if (target) {
+            SwrWaitForIdleFE(ctx->swrContext);
+            buffer.enable = true;
+            buffer.pBuffer =
+               (uint32_t *)(swr_resource_data(target->pipe.buffer) +
+                            target->pipe.buffer_offset);
+            buffer.bufferSize = target->pipe.buffer_size >> 2;
+            buffer.pitch = target->stride = stream_output->stride[i];
+            buffer.streamOffset = target->writeOffset >> 2;
+            buffer.pWriteOffset = &target->writeOffset;
+         }
 
          SwrSetSoBuffers(ctx->swrContext, &buffer, i);
       }
+
+      swr_draw_context *pDC = &ctx->swrDC;
+      memcpy(pDC->soTargets, ctx->so_targets, sizeof(ctx->so_targets));
    }
 
    if (ctx->dirty & SWR_NEW_CLIP) {
@@ -1542,7 +1548,8 @@ swr_create_so_target(struct pipe_context *pipe,
 {
    struct pipe_stream_output_target *target;
 
-   target = CALLOC_STRUCT(pipe_stream_output_target);
+   target = (struct pipe_stream_output_target *)
+      CALLOC_STRUCT(swr_stream_output_target);
    if (!target)
       return NULL;
 
@@ -1559,6 +1566,7 @@ swr_destroy_so_target(struct pipe_context *pipe,
                       struct pipe_stream_output_target *target)
 {
    pipe_resource_reference(&target->buffer, NULL);
+   /* TODO: Should this wait for FE to complete? */
    FREE(target);
 }
 
@@ -1577,6 +1585,10 @@ swr_set_so_targets(struct pipe_context *pipe,
       pipe_so_target_reference(
          (struct pipe_stream_output_target **)&swr->so_targets[i],
          targets[i]);
+      if (swr->so_targets[i] && offsets[i] != (unsigned)-1) {
+         SwrWaitForIdleFE(swr->swrContext);
+         swr->so_targets[i]->writeOffset = 0;
+      }
    }
 
    for (/* fall-through */; i < swr->num_so_targets; i++) {

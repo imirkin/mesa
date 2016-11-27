@@ -94,6 +94,7 @@ struct swr_draw_context {
    float userClipPlanes[PIPE_MAX_CLIP_PLANES][4];
 
    SWR_SURFACE_STATE renderTargets[SWR_NUM_ATTACHMENTS];
+   void *soTargets[MAX_SO_STREAMS];
    void *pStats;
 };
 
@@ -146,7 +147,7 @@ struct swr_context {
    unsigned sample_mask;
 
    // streamout
-   pipe_stream_output_target *so_targets[MAX_SO_STREAMS];
+   struct swr_stream_output_target *so_targets[MAX_SO_STREAMS];
    uint32_t num_so_targets;
 
    /* Temp storage for user_buffer constants */

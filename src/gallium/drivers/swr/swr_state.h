@@ -67,6 +67,12 @@ struct swr_fragment_shader {
    std::unordered_map<swr_jit_fs_key, std::unique_ptr<VariantFS>> map;
 };
 
+struct swr_stream_output_target {
+   struct pipe_stream_output_target pipe;
+   uint32_t stride;
+   uint32_t writeOffset;
+};
+
 /* Vertex element state */
 struct swr_vertex_element_state {
    FETCH_COMPILE_STATE fsState;

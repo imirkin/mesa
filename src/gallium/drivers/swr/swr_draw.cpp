@@ -194,10 +194,20 @@ swr_draw_vbo(struct pipe_context *pipe, const struct pipe_draw_info *info)
    feState.bEnableCutIndex = info->primitive_restart;
    SwrSetFrontendState(ctx->swrContext, &feState);
 
+   uint32_t count = info->count;
+   if (info->count_from_stream_output) {
+      struct swr_stream_output_target *so =
+         (struct swr_stream_output_target *)info->count_from_stream_output;
+
+      SwrWaitForIdleFE(ctx->swrContext);
+
+      count = (so->writeOffset >> 2) / so->stride;
+   }
+
    if (info->indexed)
       SwrDrawIndexedInstanced(ctx->swrContext,
                               swr_convert_prim_topology(info->mode),
-                              info->count,
+                              count,
                               info->instance_count,
                               info->start,
                               info->index_bias,
@@ -205,7 +215,7 @@ swr_draw_vbo(struct pipe_context *pipe, const struct pipe_draw_info *info)
    else
       SwrDrawInstanced(ctx->swrContext,
                        swr_convert_prim_topology(info->mode),
-                       info->count,
+                       count,
                        info->instance_count,
                        info->start,
                        info->start_instance);
