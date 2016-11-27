@@ -335,6 +335,7 @@ swr_create_vs_state(struct pipe_context *pipe,
    swr_vs->soState = {0};
 
    if (swr_vs->pipe.stream_output.num_outputs) {
+      const struct tgsi_shader_info *vsinfo = &swr_vs->info.base;
       pipe_stream_output_info *stream_output = &swr_vs->pipe.stream_output;
 
       swr_vs->soState.soEnable = true;
@@ -342,8 +343,14 @@ swr_create_vs_state(struct pipe_context *pipe,
       // soState.streamToRasterizer not used
 
       for (uint32_t i = 0; i < stream_output->num_outputs; i++) {
+         unsigned reg = stream_output->output[i].register_index;
+         if (vsinfo->output_semantic_name[reg] == TGSI_SEMANTIC_POSITION)
+            reg = vsinfo->num_outputs;
+         else if (vsinfo->output_semantic_name[reg] == TGSI_SEMANTIC_PSIZE)
+            reg = vsinfo->num_outputs + 1;
+         assert(reg > 0 && reg <= 32);
          swr_vs->soState.streamMasks[stream_output->output[i].stream] |=
-            1 << (stream_output->output[i].register_index - 1);
+            1 << (reg - 1);
       }
       for (uint32_t i = 0; i < MAX_SO_STREAMS; i++) {
         swr_vs->soState.streamNumEntries[i] =
@@ -1519,7 +1526,7 @@ swr_update_derived(struct pipe_context *pipe,
    // set up backend state
    SWR_BACKEND_STATE backendState = {0};
    backendState.numAttributes =
-      ctx->vs->info.base.num_outputs - 1 +
+      ctx->vs->info.base.num_outputs + 2 - 1 +
       (ctx->rasterizer->sprite_coord_enable ? 1 : 0);
    for (unsigned i = 0; i < backendState.numAttributes; i++)
       backendState.numComponents[i] = 4;

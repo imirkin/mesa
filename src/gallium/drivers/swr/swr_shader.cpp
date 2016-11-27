@@ -276,6 +276,24 @@ BuilderSWR::CompileVS(const struct swr_vertex_shader *swr_vs,
       }
    }
 
+   if (swr_vs->pipe.stream_output.num_outputs) {
+      const pipe_stream_output_info *stream_output = &swr_vs->pipe.stream_output;
+      uint32_t num_outputs = swr_vs->info.base.num_outputs;
+      for (uint32_t attrib = 0; attrib < stream_output->num_outputs; attrib++) {
+         unsigned reg = stream_output->output[attrib].register_index;
+         unsigned sn = swr_vs->info.base.output_semantic_name[reg];
+         if (sn == TGSI_SEMANTIC_PSIZE) {
+            Value *val = LOAD(unwrap(outputs[reg][0]));
+            STORE(val, vtxOutput, {0, 0, num_outputs + 1, 0});
+         } else if (sn == TGSI_SEMANTIC_POSITION) {
+            for (uint32_t channel = 0; channel < TGSI_NUM_CHANNELS; channel++) {
+               Value *val = LOAD(unwrap(outputs[reg][channel]));
+               STORE(val, vtxOutput, {0, 0, num_outputs, channel});
+            }
+         }
+      }
+   }
+
    if (key.clip_plane_mask ||
        swr_vs->info.base.culldist_writemask) {
       unsigned clip_mask = key.clip_plane_mask;

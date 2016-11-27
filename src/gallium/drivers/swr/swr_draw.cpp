@@ -98,6 +98,7 @@ swr_draw_vbo(struct pipe_context *pipe, const struct pipe_draw_info *info)
       if (!ctx->vs->soFunc[info->mode]) {
          STREAMOUT_COMPILE_STATE state = {0};
          struct pipe_stream_output_info *so = &ctx->vs->pipe.stream_output;
+         const struct tgsi_shader_info *vsinfo = &ctx->vs->info.base;
 
          state.numVertsPerPrim = u_vertices_per_prim(info->mode);
 
@@ -119,7 +120,13 @@ swr_draw_vbo(struct pipe_context *pipe, const struct pipe_draw_info *info)
             }
 
             state.stream.decl[num].bufferIndex = output_buffer;
-            state.stream.decl[num].attribSlot = so->output[i].register_index - 1;
+
+            uint32_t reg = so->output[i].register_index;
+            if (vsinfo->output_semantic_name[reg] == TGSI_SEMANTIC_POSITION)
+               reg = vsinfo->num_outputs;
+            else if (vsinfo->output_semantic_name[reg] == TGSI_SEMANTIC_PSIZE)
+               reg = vsinfo->num_outputs + 1;
+            state.stream.decl[num].attribSlot = reg - 1;
             state.stream.decl[num].componentMask =
                ((1 << so->output[i].num_components) - 1)
                << so->output[i].start_component;
