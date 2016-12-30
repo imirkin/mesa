@@ -2507,6 +2507,7 @@ vtn_handle_preamble_instruction(struct vtn_builder *b, SpvOp opcode,
       case SpvCapabilityInputAttachment:
       case SpvCapabilityImageGatherExtended:
       case SpvCapabilityStorageImageExtendedFormats:
+      case SpvCapabilityStorageImageWriteWithoutFormat:
          break;
 
       case SpvCapabilityGeometryStreams:
@@ -2527,8 +2528,6 @@ vtn_handle_preamble_instruction(struct vtn_builder *b, SpvOp opcode,
       case SpvCapabilitySparseResidency:
       case SpvCapabilityMinLod:
       case SpvCapabilityTransformFeedback:
-      case SpvCapabilityStorageImageReadWithoutFormat:
-      case SpvCapabilityStorageImageWriteWithoutFormat:
          vtn_warn("Unsupported SPIR-V capability: %s",
                   spirv_capability_to_string(cap));
          break;
@@ -2549,6 +2548,9 @@ vtn_handle_preamble_instruction(struct vtn_builder *b, SpvOp opcode,
 
       case SpvCapabilityImageMSArray:
          spv_check_supported(image_ms_array, cap);
+         break;
+      case SpvCapabilityStorageImageReadWithoutFormat:
+         spv_check_supported(storage_image_read_without_format, cap);
          break;
       }
       break;

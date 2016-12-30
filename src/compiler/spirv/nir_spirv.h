@@ -43,6 +43,7 @@ struct nir_spirv_specialization {
 
 struct nir_spirv_supported_extensions {
    bool image_ms_array;
+   bool storage_image_read_without_format;
 };
 
 nir_function *spirv_to_nir(const uint32_t *words, size_t word_count,

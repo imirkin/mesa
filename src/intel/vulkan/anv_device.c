@@ -471,7 +471,7 @@ void anv_GetPhysicalDeviceFeatures(
       .shaderImageGatherExtended                = true,
       .shaderStorageImageExtendedFormats        = true,
       .shaderStorageImageMultisample            = false,
-      .shaderStorageImageReadWithoutFormat      = false,
+      .shaderStorageImageReadWithoutFormat      = pdevice->info.gen >= 9,
       .shaderStorageImageWriteWithoutFormat     = true,
       .shaderUniformBufferArrayDynamicIndexing  = true,
       .shaderSampledImageArrayDynamicIndexing   = true,
