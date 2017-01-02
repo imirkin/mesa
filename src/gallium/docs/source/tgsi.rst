@@ -2561,6 +2561,17 @@ Resource Access Opcodes
   image, while .w will contain the number of samples for multi-sampled
   images.
 
+.. opcode:: FBFETCH - Load data from framebuffer
+
+  Syntax: ``FBFETCH dst, output``
+
+  Example: ``FBFETCH TEMP[0], OUT[0]``
+
+  Returns the color of the current position in the framebuffer from
+  before this fragment shader invocation. Always returns the same
+  value from multiple calls for a particular output within a single
+  invocation.
+
 
 .. _threadsyncopcodes:
 
