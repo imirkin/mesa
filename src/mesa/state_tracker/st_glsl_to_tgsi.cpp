@@ -62,6 +62,7 @@
                            (1 << PROGRAM_UNIFORM))
 
 #define MAX_GLSL_TEXTURE_OFFSET 4
+#define TGSI_SYSTEM_VALUE_MAX (SYSTEM_VALUE_MAX + 8)
 
 class st_src_reg;
 class st_dst_reg;
@@ -2521,12 +2522,19 @@ glsl_to_tgsi_visitor::visit(ir_dereference_variable *ir)
             decl->size = type_size(var->type);
 
          if (var->data.fb_fetch_output) {
+            /*
             st_dst_reg dst = st_dst_reg(get_temp(var->type));
             st_src_reg src = st_src_reg(PROGRAM_OUTPUT, decl->mesa_index,
                                         var->type, component, decl->array_id);
             emit_asm(NULL, TGSI_OPCODE_FBFETCH, dst, src);
             entry = new(mem_ctx) variable_storage(var, dst.file, dst.index,
                                                   dst.array_id);
+            */
+            entry = new(mem_ctx) variable_storage(
+                  var,
+                  PROGRAM_SYSTEM_VALUE,
+                  SYSTEM_VALUE_MAX + var->data.location - FRAG_RESULT_DATA0,
+                  decl->array_id);
          } else {
             entry = new(mem_ctx) variable_storage(var,
                                                   PROGRAM_OUTPUT,
@@ -5219,7 +5227,7 @@ struct st_translate {
    struct ureg_src samplers[PIPE_MAX_SAMPLERS];
    struct ureg_src buffers[PIPE_MAX_SHADER_BUFFERS];
    struct ureg_src images[PIPE_MAX_SHADER_IMAGES];
-   struct ureg_src systemValues[SYSTEM_VALUE_MAX];
+   struct ureg_src systemValues[TGSI_SYSTEM_VALUE_MAX];
    struct ureg_src shared_memory;
    unsigned *array_sizes;
    struct inout_decl *input_decls;
@@ -6262,6 +6270,11 @@ st_translate_program(
             sysInputs &= ~(1 << i);
          }
       }
+   }
+
+   if (procType == PIPE_SHADER_FRAGMENT && proginfo->sh.fs.BlendSupport) {
+      t->systemValues[SYSTEM_VALUE_MAX] =
+         ureg_DECL_system_value(ureg, TGSI_SEMANTIC_COLOR, 0);
    }
 
    t->array_sizes = program->array_sizes;

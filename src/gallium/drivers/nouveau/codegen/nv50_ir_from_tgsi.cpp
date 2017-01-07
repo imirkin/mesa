@@ -1419,6 +1419,10 @@ void Source::scanInstructionSrc(const Instruction& insn,
       } else {
          info->out[src.getIndex(0)].oread = 1;
       }
+   } else
+   if (src.getFile() == TGSI_FILE_SYSTEM_VALUE) {
+      if (info->sv[src.getIndex(0)].sn == TGSI_SEMANTIC_COLOR)
+         info->prop.fp.readsFramebuffer |= 1 << info->sv[src.getIndex(0)].si;
    }
    if (src.getFile() != TGSI_FILE_INPUT)
       return;
@@ -1456,9 +1460,6 @@ bool Source::scanInstruction(const struct tgsi_full_instruction *inst)
 
    if (insn.getOpcode() == TGSI_OPCODE_BARRIER)
       info->numBarriers = 1;
-
-   if (insn.getOpcode() == TGSI_OPCODE_FBFETCH)
-      info->prop.fp.readsFramebuffer = true;
 
    if (insn.dstCount()) {
       Instruction::DstRegister dst = insn.getDst(0);
@@ -1568,6 +1569,7 @@ private:
    inline Subroutine *getSubroutine(Function *);
    inline bool isEndOfSubroutine(uint ip);
 
+   void loadFbTex();
    void loadProjTexCoords(Value *dst[4], Value *src[4], unsigned int mask);
 
    // R,S,L,C,Dx,Dy encode TGSI sources for respective values (0xSf for auto)
@@ -1575,7 +1577,6 @@ private:
    void handleTEX(Value *dst0[4], int R, int S, int L, int C, int Dx, int Dy);
    void handleTXF(Value *dst0[4], int R, int L_M);
    void handleTXQ(Value *dst0[4], enum TexQuery, int R);
-   void handleFBFETCH(Value *dst0[4]);
    void handleLIT(Value *dst0[4]);
    void handleUserClipPlanes();
 
@@ -1644,6 +1645,7 @@ private:
    Value *zero;
    Value *fragCoord[4];
    Value *clipVtx[4];
+   Value *fbtex[4];
 
    Value *vtxBase[5]; // base address of vertex in primitive (for TP/GP)
    uint8_t vtxBaseValid;
@@ -1946,6 +1948,8 @@ Converter::fetchSrc(tgsi::Instruction::SrcRegister src, int c, Value *ptr)
       return ld->getDef(0);
    case TGSI_FILE_SYSTEM_VALUE:
       assert(!ptr);
+      if (info->sv[idx].sn == TGSI_SEMANTIC_COLOR)
+         return fbtex[swz];
       ld = mkOp1(OP_RDSV, TYPE_U32, getSSA(), srcToSym(src, c));
       ld->perPatch = info->sv[idx].patch;
       return ld->getDef(0);
@@ -2295,21 +2299,18 @@ Converter::handleTXF(Value *dst[4], int R, int L_M)
 }
 
 void
-Converter::handleFBFETCH(Value *dst[4])
+Converter::loadFbTex()
 {
    TexInstruction *texi = new_TexInstruction(func, OP_TXF);
-   unsigned int c, d;
+   unsigned int c;
 
    texi->tex.target = TEX_TARGET_2D_MS_ARRAY;
    texi->tex.levelZero = 1;
    texi->tex.useOffsets = 0;
+   texi->tex.mask = 0xf;
 
-   for (c = 0, d = 0; c < 4; ++c) {
-      if (dst[c]) {
-         texi->setDef(d++, dst[c]);
-         texi->tex.mask |= 1 << c;
-      }
-   }
+   for (c = 0; c < 4; ++c)
+      texi->setDef(c, fbtex[c] = getScratch());
 
    Value *x = mkOp1v(OP_RDSV, TYPE_F32, getScratch(), mkSysVal(SV_POSITION, 0));
    Value *y = mkOp1v(OP_RDSV, TYPE_F32, getScratch(), mkSysVal(SV_POSITION, 1));
@@ -3369,9 +3370,6 @@ Converter::handleInstruction(const struct tgsi_full_instruction *insn)
       handleTXQ(dst0, TXQ_TYPE, 0);
       std::swap(dst0[0], dst0[2]);
       break;
-   case TGSI_OPCODE_FBFETCH:
-      handleFBFETCH(dst0);
-      break;
    case TGSI_OPCODE_F2I:
    case TGSI_OPCODE_F2U:
       FOR_EACH_DST_ENABLED_CHANNEL(0, c, tgsi)
@@ -4078,6 +4076,8 @@ Converter::run()
       Symbol *sv = mkSysVal(SV_POSITION, 3);
       fragCoord[3] = mkOp1v(OP_RDSV, TYPE_F32, getSSA(), sv);
       mkOp1(OP_RCP, TYPE_F32, fragCoord[3], fragCoord[3]);
+      if (info->prop.fp.readsFramebuffer)
+         loadFbTex();
       break;
    }
    default:

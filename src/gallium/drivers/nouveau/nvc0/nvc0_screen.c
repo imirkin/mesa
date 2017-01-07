@@ -38,6 +38,8 @@
 #include "nvc0/mme/com9097.mme.h"
 #include "nvc0/mme/com90c0.mme.h"
 
+#include "nv50/g80_texture.xml.h"
+
 static boolean
 nvc0_screen_is_format_supported(struct pipe_screen *pscreen,
                                 enum pipe_format format,
