@@ -136,6 +136,10 @@ nvc0_screen_compute_setup(struct nvc0_screen *screen,
    PUSH_DATA (push, 1);
    PUSH_DATA (push, 3); /* 7 */
    PUSH_DATA (push, 1);
+   BEGIN_1IC0(push, NVC0_CP(CB_POS), 1 + 8);
+   PUSH_DATA (push, NVC0_CB_AUX_UNK_INFO);
+   for (i = 0; i < 8; ++i)
+      PUSH_DATA(push, i);
 
    return 0;
 }

@@ -167,6 +167,17 @@ nve4_screen_compute_setup(struct nvc0_screen *screen,
    PUSH_DATA (push, 3); /* 7 */
    PUSH_DATA (push, 1);
 
+   BEGIN_NVC0(push, NVE4_CP(UPLOAD_DST_ADDRESS_HIGH), 2);
+   PUSH_DATAh(push, address + NVC0_CB_AUX_UNK_INFO);
+   PUSH_DATA (push, address + NVC0_CB_AUX_UNK_INFO);
+   BEGIN_NVC0(push, NVE4_CP(UPLOAD_LINE_LENGTH_IN), 2);
+   PUSH_DATA (push, 32);
+   PUSH_DATA (push, 1);
+   BEGIN_1IC0(push, NVE4_CP(UPLOAD_EXEC), 1 + 8);
+   PUSH_DATA (push, NVE4_COMPUTE_UPLOAD_EXEC_LINEAR | (0x20 << 1));
+   for (i = 0; i < 8; ++i)
+      PUSH_DATA(push, i);
+
 #ifdef NOUVEAU_NVE4_MP_TRAP_HANDLER
    BEGIN_NVC0(push, NVE4_CP(UPLOAD_DST_ADDRESS_HIGH), 2);
    PUSH_DATAh(push, screen->parm->offset + NVE4_CP_INPUT_TRAP_INFO_PTR);
