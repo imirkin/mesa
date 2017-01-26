@@ -3806,7 +3806,8 @@ Converter::handleInstruction(const struct tgsi_full_instruction *insn)
       uint32_t level = tgsi.getSrc(0).getValueU32(0, info);
       geni = mkOp(OP_MEMBAR, TYPE_NONE, NULL);
       geni->fixed = 1;
-      if (!(level & ~(TGSI_MEMBAR_THREAD_GROUP | TGSI_MEMBAR_SHARED)))
+      if (level == TGSI_MEMBAR_SHARED ||
+          level & TGSI_MEMBAR_THREAD_GROUP)
          geni->subOp = NV50_IR_SUBOP_MEMBAR(M, CTA);
       else
          geni->subOp = NV50_IR_SUBOP_MEMBAR(M, GL);
