@@ -1613,6 +1613,9 @@ NVC0LoweringPass::handleCasExch(Instruction *cas, bool needCctl)
       }
    }
 
+   if (cas->subOp != NV50_IR_SUBOP_ATOM_CAS &&
+       cas->subOp != NV50_IR_SUBOP_ATOM_EXCH)
+      return false;
    bld.setPosition(cas, true);
 
    if (needCctl) {
@@ -1623,10 +1626,6 @@ NVC0LoweringPass::handleCasExch(Instruction *cas, bool needCctl)
       if (cas->isPredicated())
          cctl->setPredicate(cas->cc, cas->getPredicate());
    }
-
-   if (cas->subOp != NV50_IR_SUBOP_ATOM_CAS &&
-       cas->subOp != NV50_IR_SUBOP_ATOM_EXCH)
-      return false;
 
    if (cas->subOp == NV50_IR_SUBOP_ATOM_CAS) {
       // CAS is crazy. It's 2nd source is a double reg, and the 3rd source
