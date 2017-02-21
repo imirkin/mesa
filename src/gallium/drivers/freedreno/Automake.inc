@@ -1,6 +1,6 @@
 if HAVE_GALLIUM_FREEDRENO
 
-TARGET_DRIVERS += msm kgsl
+TARGET_DRIVERS += msm kgsl imxdrm
 TARGET_CPPFLAGS += -DGALLIUM_FREEDRENO
 TARGET_LIB_DEPS += \
 	$(top_builddir)/src/gallium/winsys/freedreno/drm/libfreedrenodrm.la \

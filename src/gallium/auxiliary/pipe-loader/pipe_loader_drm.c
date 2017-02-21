@@ -101,6 +101,11 @@ static const struct drm_driver_descriptor driver_descriptors[] = {
         .configuration = pipe_default_configuration_query,
     },
     {
+        .driver_name = "imxdrm",
+        .create_screen = pipe_freedreno_create_screen,
+        .configuration = pipe_default_configuration_query,
+    },
+    {
         .driver_name = "msm",
         .create_screen = pipe_freedreno_create_screen,
         .configuration = pipe_default_configuration_query,
