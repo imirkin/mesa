@@ -51,6 +51,9 @@ fd_draw(struct fd_batch *batch, struct fd_ringbuffer *ring,
 		uint32_t idx_size, uint32_t idx_offset,
 		struct pipe_resource *idx_buffer)
 {
+	uint32_t num_args;
+	uint32_t di_and, di_or;
+
 	/* for debug after a lock up, write a unique counter value
 	 * to scratch7 for each draw, to make it easier to match up
 	 * register dumps to cmdstream.  The combination of IB
@@ -74,18 +77,36 @@ fd_draw(struct fd_batch *batch, struct fd_ringbuffer *ring,
 		OUT_RING(ring, 0);
 	}
 
-	OUT_PKT3(ring, CP_DRAW_INDX, idx_buffer ? 5 : 3);
+	if (is_a20x(ctx->screen)) {
+		/* A20x (or at least A205) stores NumIndices in the high bits
+		  It also doesn't like bit 14 being set... */
+		num_args = 2;
+		di_and = ~((0xFFFF << 16) | (1 << 14));
+		di_or = count << 16;
+	} else {
+		num_args = 3;
+		di_and = ~0;
+		di_or = 0;
+	}
+	if (idx_buffer)
+		num_args += 2;
+
+	OUT_PKT3(ring, CP_DRAW_INDX, num_args);
 	OUT_RING(ring, 0x00000000);        /* viz query info. */
 	if (vismode == USE_VISIBILITY) {
 		/* leave vis mode blank for now, it will be patched up when
 		 * we know if we are binning or not
 		 */
-		OUT_RINGP(ring, DRAW(primtype, src_sel, idx_type, 0, instances),
-				&batch->draw_patches);
+		OUT_RINGP(ring,
+			(DRAW(primtype, src_sel, idx_type, 0, instances) & di_and) | di_or,
+			&batch->draw_patches);
 	} else {
-		OUT_RING(ring, DRAW(primtype, src_sel, idx_type, vismode, instances));
+		OUT_RING(ring,
+			(DRAW(primtype, src_sel, idx_type, vismode, instances) & di_and) | di_or);
 	}
-	OUT_RING(ring, count);             /* NumIndices */
+	if (!is_a20x(ctx->screen))
+		OUT_RING(ring, count);             /* NumIndices */
+
 	if (idx_buffer) {
 		OUT_RELOC(ring, fd_resource(idx_buffer)->bo, idx_offset, 0, 0);
 		OUT_RING (ring, idx_size);
