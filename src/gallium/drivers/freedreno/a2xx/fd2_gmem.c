@@ -91,10 +91,12 @@ emit_gmem2mem_surf(struct fd_batch *batch, uint32_t base,
 
 	OUT_WFI (ring);
 
-	OUT_PKT3(ring, CP_SET_CONSTANT, 3);
-	OUT_RING(ring, CP_REG(REG_A2XX_VGT_MAX_VTX_INDX));
-	OUT_RING(ring, 3);                 /* VGT_MAX_VTX_INDX */
-	OUT_RING(ring, 0);                 /* VGT_MIN_VTX_INDX */
+	if (!is_a20x(ctx->screen)) {
+		OUT_PKT3(ring, CP_SET_CONSTANT, 3);
+		OUT_RING(ring, CP_REG(REG_A2XX_VGT_MAX_VTX_INDX));
+		OUT_RING(ring, 3);                 /* VGT_MAX_VTX_INDX */
+		OUT_RING(ring, 0);                 /* VGT_MIN_VTX_INDX */
+	}
 
 	fd_draw(batch, ring, DI_PT_RECTLIST, IGNORE_VISIBILITY,
 			DI_SRC_SEL_AUTO_INDEX, 3, 0, INDEX_SIZE_IGN, 0, 0, NULL);
@@ -122,7 +124,7 @@ fd2_emit_tile_gmem2mem(struct fd_batch *batch, struct fd_tile *tile)
 
 	OUT_PKT3(ring, CP_SET_CONSTANT, 2);
 	OUT_RING(ring, CP_REG(REG_A2XX_VGT_VERTEX_REUSE_BLOCK_CNTL));
-	OUT_RING(ring, 0x0000028f);
+	OUT_RING(ring, 0x0000028f); /* A20x blob uses 0x2 but doesn't seem to matter */
 
 	fd2_program_emit(ring, &ctx->solid_prog);
 
@@ -214,10 +216,12 @@ emit_mem2gmem_surf(struct fd_batch *batch, uint32_t base,
 	OUT_RING(ring, 0x00000000);
 	OUT_RING(ring, 0x00000200);
 
-	OUT_PKT3(ring, CP_SET_CONSTANT, 3);
-	OUT_RING(ring, CP_REG(REG_A2XX_VGT_MAX_VTX_INDX));
-	OUT_RING(ring, 3);                 /* VGT_MAX_VTX_INDX */
-	OUT_RING(ring, 0);                 /* VGT_MIN_VTX_INDX */
+	if (!is_a20x(ctx->screen)) {
+		OUT_PKT3(ring, CP_SET_CONSTANT, 3);
+		OUT_RING(ring, CP_REG(REG_A2XX_VGT_MAX_VTX_INDX));
+		OUT_RING(ring, 3);                 /* VGT_MAX_VTX_INDX */
+		OUT_RING(ring, 0);                 /* VGT_MIN_VTX_INDX */
+	}
 
 	fd_draw(batch, ring, DI_PT_RECTLIST, IGNORE_VISIBILITY,
 			DI_SRC_SEL_AUTO_INDEX, 3, 0, INDEX_SIZE_IGN, 0, 0, NULL);
@@ -261,7 +265,7 @@ fd2_emit_tile_mem2gmem(struct fd_batch *batch, struct fd_tile *tile)
 
 	OUT_PKT3(ring, CP_SET_CONSTANT, 2);
 	OUT_RING(ring, CP_REG(REG_A2XX_VGT_VERTEX_REUSE_BLOCK_CNTL));
-	OUT_RING(ring, 0x0000003b);
+	OUT_RING(ring, 0x0000003b); /* A20x blob uses 0x0 but doesn't seem to matter */
 
 	fd2_program_emit(ring, &ctx->blit_prog[0]);
 

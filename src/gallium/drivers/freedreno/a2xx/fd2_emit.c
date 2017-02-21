@@ -333,6 +333,17 @@ fd2_emit_state(struct fd_context *ctx, const enum fd_dirty_3d_state dirty)
 void
 fd2_emit_restore(struct fd_context *ctx, struct fd_ringbuffer *ring)
 {
+	if (is_a20x(ctx->screen)) {
+		/* On A205 gmem2mem hangs without this */
+		OUT_PKT0(ring, REG_A2XX_RB_BC_CONTROL, 1);
+		OUT_RING(ring, /* Flags below from blob value 0x1c004046 */
+			A2XX_RB_BC_CONTROL_ACCUM_TIMEOUT_SELECT(3) |
+			A2XX_RB_BC_CONTROL_DISABLE_LZ_NULL_ZCMD_DROP |
+			A2XX_RB_BC_CONTROL_ENABLE_CRC_UPDATE |
+			A2XX_RB_BC_CONTROL_ACCUM_DATA_FIFO_LIMIT(8) |  // important
+			A2XX_RB_BC_CONTROL_MEM_EXPORT_TIMEOUT_SELECT(3));
+	}
+
 	OUT_PKT0(ring, REG_A2XX_TP0_CHICKEN, 1);
 	OUT_RING(ring, 0x00000002);
 
@@ -351,6 +362,7 @@ fd2_emit_restore(struct fd_context *ctx, struct fd_ringbuffer *ring)
 
 	OUT_PKT3(ring, CP_SET_CONSTANT, 3);
 	OUT_RING(ring, CP_REG(REG_A2XX_VGT_MAX_VTX_INDX));
+	/* A20x: blob uses 0x00ffffff here but doesn't seem to hurt */
 	OUT_RING(ring, 0xffffffff);        /* VGT_MAX_VTX_INDX */
 	OUT_RING(ring, 0x00000000);        /* VGT_MIN_VTX_INDX */
 
@@ -360,7 +372,7 @@ fd2_emit_restore(struct fd_context *ctx, struct fd_ringbuffer *ring)
 
 	OUT_PKT3(ring, CP_SET_CONSTANT, 2);
 	OUT_RING(ring, CP_REG(REG_A2XX_VGT_VERTEX_REUSE_BLOCK_CNTL));
-	OUT_RING(ring, 0x0000003b);
+	OUT_RING(ring, 0x0000003b); /* A20x blob uses 0x2 but doesn't seem to matter */
 
 	OUT_PKT3(ring, CP_SET_CONSTANT, 2);
 	OUT_RING(ring, CP_REG(REG_A2XX_SQ_CONTEXT_MISC));
@@ -387,6 +399,7 @@ fd2_emit_restore(struct fd_context *ctx, struct fd_ringbuffer *ring)
 	OUT_RING(ring, CP_REG(REG_A2XX_RB_MODECONTROL));
 	OUT_RING(ring, A2XX_RB_MODECONTROL_EDRAM_MODE(COLOR_DEPTH));
 
+	/* A20x: not done by the A205 blob but doesn't seem to hurt */
 	OUT_PKT3(ring, CP_SET_CONSTANT, 2);
 	OUT_RING(ring, CP_REG(REG_A2XX_RB_SAMPLE_POS));
 	OUT_RING(ring, 0x88888888);

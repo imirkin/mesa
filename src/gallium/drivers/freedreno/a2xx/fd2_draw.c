@@ -96,26 +96,31 @@ fd2_draw_vbo(struct fd_context *ctx, const struct pipe_draw_info *info,
 
 	OUT_PKT3(ring, CP_SET_CONSTANT, 2);
 	OUT_RING(ring, CP_REG(REG_A2XX_VGT_VERTEX_REUSE_BLOCK_CNTL));
-	OUT_RING(ring, 0x0000003b);
+	OUT_RING(ring, 0x0000003b); /* A20x blob uses 0x2 but doesn't seem to matter */
 
 	OUT_PKT0(ring, REG_A2XX_TC_CNTL_STATUS, 1);
 	OUT_RING(ring, A2XX_TC_CNTL_STATUS_L2_INVALIDATE);
 
 	OUT_WFI (ring);
 
-	OUT_PKT3(ring, CP_SET_CONSTANT, 3);
-	OUT_RING(ring, CP_REG(REG_A2XX_VGT_MAX_VTX_INDX));
-	OUT_RING(ring, info->max_index);        /* VGT_MAX_VTX_INDX */
-	OUT_RING(ring, info->min_index);        /* VGT_MIN_VTX_INDX */
+	if (!is_a20x(ctx->screen)) {
+		OUT_PKT3(ring, CP_SET_CONSTANT, 3);
+		OUT_RING(ring, CP_REG(REG_A2XX_VGT_MAX_VTX_INDX));
+		OUT_RING(ring, info->max_index);        /* VGT_MAX_VTX_INDX */
+		OUT_RING(ring, info->min_index);        /* VGT_MIN_VTX_INDX */
+	}
 
 	fd_draw_emit(ctx->batch, ring, ctx->primtypes[info->mode],
 				 IGNORE_VISIBILITY, info, index_offset);
 
-	OUT_PKT3(ring, CP_SET_CONSTANT, 2);
-	OUT_RING(ring, CP_REG(REG_A2XX_UNKNOWN_2010));
-	OUT_RING(ring, 0x00000000);
+	/* A20x: this doesn't hurt but isn't needed on A205 less pollution! */
+	if (!is_a20x(ctx->screen)) {
+		OUT_PKT3(ring, CP_SET_CONSTANT, 2);
+		OUT_RING(ring, CP_REG(REG_A2XX_UNKNOWN_2010));
+		OUT_RING(ring, 0x00000000);
 
-	emit_cacheflush(ring);
+		emit_cacheflush(ring);
+	}
 
 	fd_context_all_clean(ctx);
 
@@ -150,17 +155,32 @@ fd2_clear(struct fd_context *ctx, unsigned buffers,
 
 	OUT_PKT3(ring, CP_SET_CONSTANT, 2);
 	OUT_RING(ring, CP_REG(REG_A2XX_VGT_VERTEX_REUSE_BLOCK_CNTL));
-	OUT_RING(ring, 0x0000028f);
-
+	OUT_RING(ring, 0x0000028f); /* A20x blob uses 0x2 but doesn't seem to matter */
 	fd2_program_emit(ring, &ctx->solid_prog);
 
 	OUT_PKT0(ring, REG_A2XX_TC_CNTL_STATUS, 1);
 	OUT_RING(ring, A2XX_TC_CNTL_STATUS_L2_INVALIDATE);
 
-	OUT_PKT3(ring, CP_SET_CONSTANT, 2);
-	OUT_RING(ring, CP_REG(REG_A2XX_CLEAR_COLOR));
-	OUT_RING(ring, colr);
+	if (is_a20x(ctx->screen)) {
+		/* On A205 REG_A2XX_CLEAR_COLOR doesn't exist... */
+		OUT_PKT3(ring, CP_SET_CONSTANT, 5);
+		OUT_RING(ring, 0x00000480);
+		OUT_RING(ring, color->ui[0]);
+		OUT_RING(ring, color->ui[1]);
+		OUT_RING(ring, color->ui[2]);
+		OUT_RING(ring, color->ui[3]);
+	} else {
+		uint32_t colr = 0;
 
+		if ((buffers & PIPE_CLEAR_COLOR) && fb->nr_cbufs)
+			colr  = pack_rgba(fb->cbufs[0]->format, color->f);
+
+		OUT_PKT3(ring, CP_SET_CONSTANT, 2);
+		OUT_RING(ring, CP_REG(REG_A2XX_CLEAR_COLOR));
+		OUT_RING(ring, colr);
+	}
+
+	/* A20x: not done by the A205 blob but doesn't seem to hurt */
 	OUT_PKT3(ring, CP_SET_CONSTANT, 2);
 	OUT_RING(ring, CP_REG(REG_A2XX_A220_RB_LRZ_VSC_CONTROL));
 	OUT_RING(ring, 0x00000084);
@@ -264,14 +284,17 @@ fd2_clear(struct fd_context *ctx, unsigned buffers,
 		OUT_RING(ring, 0x0);
 	}
 
-	OUT_PKT3(ring, CP_SET_CONSTANT, 3);
-	OUT_RING(ring, CP_REG(REG_A2XX_VGT_MAX_VTX_INDX));
-	OUT_RING(ring, 3);                 /* VGT_MAX_VTX_INDX */
-	OUT_RING(ring, 0);                 /* VGT_MIN_VTX_INDX */
+	if (!is_a20x(ctx->screen)) {
+		OUT_PKT3(ring, CP_SET_CONSTANT, 3);
+		OUT_RING(ring, CP_REG(REG_A2XX_VGT_MAX_VTX_INDX));
+		OUT_RING(ring, 3);                 /* VGT_MAX_VTX_INDX */
+		OUT_RING(ring, 0);                 /* VGT_MIN_VTX_INDX */
+	}
 
 	fd_draw(ctx->batch, ring, DI_PT_RECTLIST, IGNORE_VISIBILITY,
 			DI_SRC_SEL_AUTO_INDEX, 3, 0, INDEX_SIZE_IGN, 0, 0, NULL);
 
+	/* A20x: not done by the A205 blob but doesn't seem to hurt */
 	OUT_PKT3(ring, CP_SET_CONSTANT, 2);
 	OUT_RING(ring, CP_REG(REG_A2XX_A220_RB_LRZ_VSC_CONTROL));
 	OUT_RING(ring, 0x00000000);
