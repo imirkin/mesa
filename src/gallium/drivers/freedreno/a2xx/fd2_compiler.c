@@ -91,6 +91,10 @@ struct fd2_compile_context {
 	// and get rid perhaps of num_param..
 	unsigned num_position, num_param;
 	unsigned position, psize;
+	struct {
+		unsigned param_pixel : 1;
+		unsigned position : 1;
+	} alloc_done;
 
 	uint64_t need_sync;
 
@@ -142,6 +146,8 @@ compile_init(struct fd2_compile_context *ctx, struct fd_program_stateobj *prog,
 	ctx->psize = ~0;
 	ctx->num_position = 0;
 	ctx->num_param = 0;
+	ctx->alloc_done.param_pixel = 0;
+	ctx->alloc_done.position = 0;
 	ctx->need_sync = 0;
 	ctx->immediate_idx = 0;
 	ctx->pred_reg = -1;
@@ -983,29 +989,37 @@ translate_instruction(struct fd2_compile_context *ctx,
 	struct ir2_instruction *instr;
 	static struct ir2_cf *cf;
 
-	if (opc == TGSI_OPCODE_END)
+	if (opc == TGSI_OPCODE_END) {
+		/* A205 hangs if no ALLOC PARAM/PIXEL */
+		if (!ctx->alloc_done.param_pixel) {
+			ctx->cf = NULL;
+			ir2_cf_create_alloc(ctx->so->ir, SQ_PARAMETER_PIXEL, 0);
+			next_exec_cf(ctx);
+		}
 		return;
+	}
 
 	if (inst->Dst[0].Register.File == TGSI_FILE_OUTPUT) {
 		unsigned num = inst->Dst[0].Register.Index;
+
 		/* seems like we need to ensure that position vs param/pixel
 		 * exports don't end up in the same EXEC clause..  easy way
 		 * to do this is force a new EXEC clause on first appearance
 		 * of an position or param/pixel export.
 		 */
 		if ((num == ctx->position) || (num == ctx->psize)) {
-			if (ctx->num_position > 0) {
+			if (ctx->num_position > 0 && !ctx->alloc_done.position) {
 				ctx->cf = NULL;
 				ir2_cf_create_alloc(ctx->so->ir, SQ_POSITION,
 						ctx->num_position - 1);
-				ctx->num_position = 0;
+				ctx->alloc_done.position = 1;
 			}
 		} else {
-			if (ctx->num_param > 0) {
+			if (ctx->num_param > 0 && !ctx->alloc_done.param_pixel) {
 				ctx->cf = NULL;
 				ir2_cf_create_alloc(ctx->so->ir, SQ_PARAMETER_PIXEL,
 						ctx->num_param - 1);
-				ctx->num_param = 0;
+				ctx->alloc_done.param_pixel = 1;
 			}
 		}
 	}
