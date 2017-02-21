@@ -40,6 +40,10 @@
 static void
 fd2_context_destroy(struct pipe_context *pctx)
 {
+	struct fd2_context *fd2_ctx = fd2_context(fd_context(pctx));
+
+	pipe_resource_reference(&fd2_ctx->solid_vertexbuf, NULL);
+
 	fd_context_destroy(pctx);
 }
 
