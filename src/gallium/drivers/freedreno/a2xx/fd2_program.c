@@ -54,10 +54,12 @@ create_shader(enum shader_t type)
 static void
 delete_shader(struct fd2_shader_stateobj *so)
 {
-	ir2_shader_destroy(so->ir);
-	free(so->tokens);
-	free(so->bin);
-	free(so);
+	if (so) {
+		ir2_shader_destroy(so->ir);
+		free(so->tokens);
+		free(so->bin);
+		free(so);
+	}
 }
 
 static struct fd2_shader_stateobj *
