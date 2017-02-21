@@ -200,6 +200,11 @@ debug_backtrace_print(FILE *f,
 #include <windows.h>
 #endif
 
+#if defined(PIPE_CC_GCC)
+#include <execinfo.h>
+#endif
+
+#include <stdio.h>
 
 /**
  * Capture stack backtrace.
@@ -209,7 +214,7 @@ debug_backtrace_print(FILE *f,
  * calling stack.
  */
 void
-debug_backtrace_capture(struct debug_stack_frame *backtrace,
+debug_backtrace_capture(struct debug_stack_frame *backtrace_out,
                         unsigned start_frame,
                         unsigned nr_frames)
 {
@@ -252,11 +257,11 @@ debug_backtrace_capture(struct debug_stack_frame *backtrace,
 
          assert(start_frame + nr_frames < 63);
          i = pfnCaptureStackBackTrace(start_frame, nr_frames,
-                                      (PVOID *) &backtrace->function, NULL);
+                                      (PVOID *) &backtrace_out->function, NULL);
 
          /* Pad remaing requested frames with NULL */
          while (i < nr_frames) {
-            backtrace[i++].function = NULL;
+            backtrace_out[i++].function = NULL;
          }
 
          return;
@@ -275,7 +280,7 @@ debug_backtrace_capture(struct debug_stack_frame *backtrace,
    frame_pointer = NULL;
 #endif
 
-#ifdef PIPE_ARCH_X86
+#if defined(PIPE_ARCH_X86)
    while (nr_frames) {
       const void **next_frame_pointer;
 
@@ -285,7 +290,7 @@ debug_backtrace_capture(struct debug_stack_frame *backtrace,
       if (start_frame)
          --start_frame;
       else {
-         backtrace[i++].function = frame_pointer[1];
+         backtrace_out[i++].function = frame_pointer[1];
          --nr_frames;
       }
 
@@ -298,12 +303,32 @@ debug_backtrace_capture(struct debug_stack_frame *backtrace,
 
       frame_pointer = next_frame_pointer;
    }
+#elif defined(PIPE_CC_GCC)
+{
+   void **bt_buf;
+   int got_frames;
+
+   bt_buf = malloc(nr_frames * sizeof(void *));
+
+   if (bt_buf)
+      got_frames = backtrace(bt_buf, nr_frames);
+   else
+      got_frames = 0;
+
+   for (; i<got_frames; i++) {
+      backtrace_out[i].function = bt_buf[i];
+      --nr_frames;
+   }
+
+   free(bt_buf);
+   (void) frame_pointer;
+}
 #else
    (void) frame_pointer;
 #endif
 
    while (nr_frames) {
-      backtrace[i++].function = NULL;
+      backtrace_out[i++].function = NULL;
       --nr_frames;
    }
 }

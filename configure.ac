@@ -291,6 +291,7 @@ AX_CHECK_COMPILE_FLAG([-Werror=missing-prototypes],            [CFLAGS="$CFLAGS 
 AX_CHECK_COMPILE_FLAG([-Wmissing-prototypes],                  [CFLAGS="$CFLAGS -Wmissing-prototypes"])
 AX_CHECK_COMPILE_FLAG([-fno-math-errno],                       [CFLAGS="$CFLAGS -fno-math-errno"])
 AX_CHECK_COMPILE_FLAG([-fno-trapping-math],                    [CFLAGS="$CFLAGS -fno-trapping-math"])
+AX_CHECK_COMPILE_FLAG([-funwind-tables],                       [CFLAGS="$CFLAGS -funwind-tables"])
 AX_CHECK_COMPILE_FLAG([-fvisibility=hidden],                   [VISIBILITY_CFLAGS="-fvisibility=hidden"])
 
 dnl
@@ -300,6 +301,7 @@ AC_LANG_PUSH([C++])
 AX_CHECK_COMPILE_FLAG([-Wall],                                 [CXXFLAGS="$CXXFLAGS -Wall"])
 AX_CHECK_COMPILE_FLAG([-fno-math-errno],                       [CXXFLAGS="$CXXFLAGS -fno-math-errno"])
 AX_CHECK_COMPILE_FLAG([-fno-trapping-math],                    [CXXFLAGS="$CXXFLAGS -fno-trapping-math"])
+AX_CHECK_COMPILE_FLAG([-funwind-tables],                       [CXXFLAGS="$CXXFLAGS -funwind-tables"])
 AX_CHECK_COMPILE_FLAG([-fvisibility=hidden],                   [VISIBILITY_CXXFLAGS="-fvisibility=hidden"])
 AC_LANG_POP([C++])
 
