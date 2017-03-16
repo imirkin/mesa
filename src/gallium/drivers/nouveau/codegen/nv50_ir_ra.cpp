@@ -1707,6 +1707,18 @@ value_cmp(ValueRef *a, ValueRef *b) {
    return ai->serial < bi->serial;
 }
 
+static bool
+self_mov(Instruction *i) {
+   if (i->op != OP_MOV)
+      return false;
+   LValue *a = i->getDef(0)->asLValue();
+   LValue *b = i->getSrc(0)->asLValue();
+   if (a == NULL || a->reg.file != FILE_GPR ||
+       b == NULL || b->reg.file != FILE_GPR)
+      return false;
+   return a->join == b->join;
+}
+
 // For each value that is to be spilled, go through all its definitions.
 // A value can have multiple definitions if it has been coalesced before.
 // For each definition, first go through all its uses and insert an unspill
@@ -1752,7 +1764,7 @@ SpillCodeInserter::run(const std::list<ValuePair>& lst)
             ValueRef *u = *it;
             Instruction *usei = u->getInsn();
             assert(usei);
-            if (usei->isPseudo()) {
+            if (usei->isPseudo() || self_mov(usei)) {
                tmp = (slot->reg.file == FILE_MEMORY_LOCAL) ? NULL : slot;
                last = NULL;
             } else {
@@ -1764,7 +1776,7 @@ SpillCodeInserter::run(const std::list<ValuePair>& lst)
          }
 
          assert(defi);
-         if (defi->isPseudo()) {
+         if (defi->isPseudo() || self_mov(defi)) {
             d = lval->defs.erase(d);
             --d;
             if (slot->reg.file == FILE_MEMORY_LOCAL)
@@ -1845,6 +1857,9 @@ RegAlloc::execFunc()
 
       // spilling to registers may add live ranges, need to rebuild everything
       ret = true;
+      for (ArrayList::Iterator bi = func->allBBlocks.iterator();
+           !bi.end(); bi.next())
+         BasicBlock::get(bi)->liveSet.fill(0);
       for (sequence = func->cfg.nextSequence(), i = 0;
            ret && i <= func->loopNestingBound;
            sequence = func->cfg.nextSequence(), ++i)

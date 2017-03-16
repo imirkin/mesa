@@ -760,7 +760,7 @@ nvc0_validate_fbread(struct nvc0_context *nvc0)
 
       IMMED_NVC0(push, NVC0_3D(TSC_FLUSH), 0);
       if (screen->base.class_3d < NVE4_3D_CLASS) {
-         BEGIN_NVC0(push, NVC0_3D(BIND_TSC2(0)), 1);
+         BEGIN_NVC0(push, NVC0_3D(BIND_TSC2(4)), 1);
          PUSH_DATA (push, (tsc->id << 12) | 1);
       }
    }
@@ -782,7 +782,7 @@ nvc0_validate_fbread(struct nvc0_context *nvc0)
          PUSH_DATA (push, NVC0_CB_AUX_FB_TEX_INFO);
          PUSH_DATA (push, (screen->default_tsc->id << 20) | tic->id);
       } else {
-         BEGIN_NVC0(push, NVC0_3D(BIND_TIC2(0)), 1);
+         BEGIN_NVC0(push, NVC0_3D(BIND_TIC2(4)), 1);
          PUSH_DATA (push, (tic->id << 9) | 1);
       }
 

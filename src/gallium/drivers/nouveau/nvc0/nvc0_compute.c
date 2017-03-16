@@ -141,6 +141,8 @@ nvc0_screen_compute_setup(struct nvc0_screen *screen,
    for (i = 0; i < 8; ++i)
       PUSH_DATA(push, i);
 
+   IMMED_NVC0(push, NVC0_CP(LINKED_TSC), 0);
+
    return 0;
 }
 
@@ -148,7 +150,7 @@ static void
 nvc0_compute_validate_samplers(struct nvc0_context *nvc0)
 {
    bool need_flush = nvc0_validate_tsc(nvc0, 5);
-   if (need_flush) {
+   if (need_flush || true) {
       BEGIN_NVC0(nvc0->base.pushbuf, NVC0_CP(TSC_FLUSH), 1);
       PUSH_DATA (nvc0->base.pushbuf, 0);
    }
@@ -163,7 +165,7 @@ static void
 nvc0_compute_validate_textures(struct nvc0_context *nvc0)
 {
    bool need_flush = nvc0_validate_tic(nvc0, 5);
-   if (need_flush) {
+   if (need_flush || true) {
       BEGIN_NVC0(nvc0->base.pushbuf, NVC0_CP(TIC_FLUSH), 1);
       PUSH_DATA (nvc0->base.pushbuf, 0);
    }
@@ -496,6 +498,8 @@ nvc0_launch_grid(struct pipe_context *pipe, const struct pipe_grid_info *info)
       BEGIN_NVC0(push, SUBC_CP(0x0360), 1);
       PUSH_DATA (push, 0x1);
    }
+
+   PUSH_KICK(push);
 
    /* TODO: Not sure if this is really necessary. */
    nvc0_compute_invalidate_surfaces(nvc0, 5);

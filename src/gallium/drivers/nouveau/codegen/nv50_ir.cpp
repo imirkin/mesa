@@ -153,10 +153,16 @@ ValueDef::set(Value *defVal)
 {
    if (value == defVal)
       return;
-   if (value)
+   if (value) {
       value->defs.remove(this);
-   if (defVal)
+      if (value->join != value)
+         value->join->defs.remove(this);
+   }
+   if (defVal) {
       defVal->defs.push_back(this);
+      if (defVal->join != defVal)
+         defVal->join->defs.push_back(this);
+   }
 
    value = defVal;
 }

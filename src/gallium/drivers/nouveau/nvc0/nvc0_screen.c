@@ -262,7 +262,7 @@ nvc0_screen_get_param(struct pipe_screen *pscreen, enum pipe_cap param)
    case PIPE_CAP_PREFER_BLIT_BASED_TEXTURE_TRANSFER:
       return nouveau_screen(pscreen)->vram_domain & NOUVEAU_BO_VRAM ? 1 : 0;
    case PIPE_CAP_TGSI_FS_FBFETCH:
-      return class_3d >= NVE4_3D_CLASS; /* needs testing on fermi */
+      return 1; //class_3d >= NVE4_3D_CLASS; /* needs testing on fermi */
    case PIPE_CAP_POLYGON_MODE_FILL_RECTANGLE:
    case PIPE_CAP_TGSI_VS_LAYER_VIEWPORT:
    case PIPE_CAP_TGSI_TES_LAYER_VIEWPORT:
