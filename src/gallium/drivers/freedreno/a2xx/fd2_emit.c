@@ -372,7 +372,7 @@ fd2_emit_restore(struct fd_context *ctx, struct fd_ringbuffer *ring)
 
 	OUT_PKT3(ring, CP_SET_CONSTANT, 2);
 	OUT_RING(ring, CP_REG(REG_A2XX_VGT_VERTEX_REUSE_BLOCK_CNTL));
-	OUT_RING(ring, 0x00000000); /* A20x blob uses 0x2 but doesn't seem to matter */
+	OUT_RING(ring, 0x00000002); /* A20x blob uses 0x2 but doesn't seem to matter */
 
 	OUT_PKT3(ring, CP_SET_CONSTANT, 2);
 	OUT_RING(ring, CP_REG(REG_A2XX_SQ_CONTEXT_MISC));

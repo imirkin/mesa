@@ -96,7 +96,7 @@ fd2_draw_vbo(struct fd_context *ctx, const struct pipe_draw_info *info,
 
 	OUT_PKT3(ring, CP_SET_CONSTANT, 2);
 	OUT_RING(ring, CP_REG(REG_A2XX_VGT_VERTEX_REUSE_BLOCK_CNTL));
-	OUT_RING(ring, 0x00000000); /* A20x blob uses 0x2 but doesn't seem to matter */
+	OUT_RING(ring, 0x00000002); /* A20x blob uses 0x2 but doesn't seem to matter */
 
 	OUT_PKT0(ring, REG_A2XX_TC_CNTL_STATUS, 1);
 	OUT_RING(ring, A2XX_TC_CNTL_STATUS_L2_INVALIDATE);
