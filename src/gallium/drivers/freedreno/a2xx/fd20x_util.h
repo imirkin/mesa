@@ -37,25 +37,29 @@ fd20x_pre_draw(struct fd_batch *batch, bool indexed)
 {
 	struct fd_ringbuffer *ring = batch->gmem;
 	struct fd2_context *fd2_ctx = fd2_context(batch->ctx);
-	/* WL: wait for current DMA to finish?
-	 * This is necessary for indexed rendering, I'm not sure it is necessary
-	 * for non-indexed */
-	OUT_PKT3(ring, CP_WAIT_REG_EQ, 4);
-	OUT_RING(ring, 0x000005d0); /* RBBM_STATUS */
-	OUT_RING(ring, 0x00000000);
-	OUT_RING(ring, 0x00001000); /* bit: 12: VGT_BUSY_NO_DMA */
-	OUT_RING(ring, 0x00000001);
-	/* WL: dummy draw one triangle with indexes 0,0,0.
-	 * with PRE_FETCH_CULL_ENABLE | GRP_CULL_ENABLE.
-         * Not sure whether this is necessary at all.
-         */
-	OUT_PKT3(ring, CP_DRAW_INDX_BIN, 6);
-	OUT_RING(ring, 0x00000000);
-	OUT_RING(ring, 0x0003c004);
-	OUT_RING(ring, 0x00000000);
-	OUT_RING(ring, 0x00000003);
-	OUT_RELOC(ring, fd_resource(fd2_ctx->solid_vertexbuf)->bo, 0x80, 0, 0);
-	OUT_RING(ring, 0x00000006);
+	if (indexed) {
+		/* WL: wait for current DMA to finish?
+		 * This is necessary for indexed rendering, I'm not sure it is necessary
+		 * for non-indexed */
+		OUT_PKT3(ring, CP_WAIT_REG_EQ, 4);
+		OUT_RING(ring, 0x000005d0); /* RBBM_STATUS */
+		OUT_RING(ring, 0x00000000);
+		OUT_RING(ring, 0x00001000); /* bit: 12: VGT_BUSY_NO_DMA */
+		OUT_RING(ring, 0x00000001);
+
+		/* WL: dummy draw one triangle with indexes 0,0,0.
+		 * with PRE_FETCH_CULL_ENABLE | GRP_CULL_ENABLE.
+		 * Seems to work around indexed drawing related crashes, especially
+		 * at first use of the GPU.
+		 */
+		OUT_PKT3(ring, CP_DRAW_INDX_BIN, 6);
+		OUT_RING(ring, 0x00000000);
+		OUT_RING(ring, 0x0003c004);
+		OUT_RING(ring, 0x00000000);
+		OUT_RING(ring, 0x00000003);
+		OUT_RELOC(ring, fd_resource(fd2_ctx->solid_vertexbuf)->bo, 0x80, 0, 0);
+		OUT_RING(ring, 0x00000006);
+	}
 }
 
 #endif

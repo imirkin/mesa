@@ -291,6 +291,7 @@ fd2_clear(struct fd_context *ctx, unsigned buffers,
 		OUT_RING(ring, 3);                 /* VGT_MAX_VTX_INDX */
 		OUT_RING(ring, 0);                 /* VGT_MIN_VTX_INDX */
 	} else {
+		OUT_WFI (ring);
 		fd20x_pre_draw(ctx->batch, false);
 	}
 
