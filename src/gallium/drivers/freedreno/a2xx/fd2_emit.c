@@ -363,7 +363,7 @@ fd2_emit_restore(struct fd_context *ctx, struct fd_ringbuffer *ring)
 	OUT_PKT3(ring, CP_SET_CONSTANT, 3);
 	OUT_RING(ring, CP_REG(REG_A2XX_VGT_MAX_VTX_INDX));
 	/* A20x: blob uses 0x00ffffff here but doesn't seem to hurt */
-	OUT_RING(ring, 0x00ffffff);        /* VGT_MAX_VTX_INDX */
+	OUT_RING(ring, 0xffffffff);        /* VGT_MAX_VTX_INDX */
 	OUT_RING(ring, 0x00000000);        /* VGT_MIN_VTX_INDX */
 
 	OUT_PKT3(ring, CP_SET_CONSTANT, 2);
@@ -413,8 +413,7 @@ fd2_emit_restore(struct fd_context *ctx, struct fd_ringbuffer *ring)
 	OUT_RING(ring, 0x00000002);
 
 	OUT_PKT0(ring, REG_A2XX_SQ_GPR_MANAGEMENT, 1);
-	//OUT_RING(ring, 0x0007f010);  // used initially for "pre-" draw
-	OUT_RING(ring, 0x00020600);  // used for normal draw
+	OUT_RING(ring, 0x00020600);
 
 	OUT_PKT3(ring, CP_SET_CONSTANT, 2);
 	OUT_RING(ring, CP_REG(REG_A2XX_RB_COPY_DEST_INFO));
