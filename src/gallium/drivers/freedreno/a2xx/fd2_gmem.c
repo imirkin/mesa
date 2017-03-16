@@ -127,7 +127,7 @@ fd2_emit_tile_gmem2mem(struct fd_batch *batch, struct fd_tile *tile)
 
 	OUT_PKT3(ring, CP_SET_CONSTANT, 2);
 	OUT_RING(ring, CP_REG(REG_A2XX_VGT_VERTEX_REUSE_BLOCK_CNTL));
-	OUT_RING(ring, 0x00000002); /* A20x blob uses 0x2 but doesn't seem to matter */
+	OUT_RING(ring, 0x00000002); /* A20x blob uses 0x2 but */
 
 	fd2_program_emit(ring, &ctx->solid_prog);
 
@@ -270,7 +270,7 @@ fd2_emit_tile_mem2gmem(struct fd_batch *batch, struct fd_tile *tile)
 
 	OUT_PKT3(ring, CP_SET_CONSTANT, 2);
 	OUT_RING(ring, CP_REG(REG_A2XX_VGT_VERTEX_REUSE_BLOCK_CNTL));
-	OUT_RING(ring, 0x00000002); /* A20x blob uses 0x0 but doesn't seem to matter */
+	OUT_RING(ring, 0x00000002); /* A20x blob uses 0x0 but */
 
 	fd2_program_emit(ring, &ctx->blit_prog[0]);
 
