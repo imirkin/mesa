@@ -62,6 +62,7 @@ a2xx_SOURCES := \
 	a2xx/fd2_texture.h \
 	a2xx/fd2_util.c \
 	a2xx/fd2_util.h \
+	a2xx/fd20x_util.h \
 	a2xx/fd2_zsa.c \
 	a2xx/fd2_zsa.h \
 	a2xx/instr-a2xx.h \

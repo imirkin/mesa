@@ -51,17 +51,19 @@ static struct pipe_resource *
 create_solid_vertexbuf(struct pipe_context *pctx)
 {
 	static const float init_shader_const[] = {
-			/* for clear/gmem2mem: */
+			/* +0x00 for clear/gmem2mem: */
 			-1.000000, +1.000000, +1.000000, +1.100000,
 			+1.000000, +1.000000, -1.000000, -1.100000,
 			+1.000000, +1.100000, -1.100000, +1.000000,
-			/* for mem2gmem: (vertices) */
+			/* +0x30 for mem2gmem: (vertices) */
 			-1.000000, +1.000000, +1.000000, +1.000000,
 			+1.000000, +1.000000, -1.000000, -1.000000,
 			+1.000000, +1.000000, -1.000000, +1.000000,
-			/* for mem2gmem: (tex coords) */
+			/* +0x60 for mem2gmem: (tex coords) */
 			+0.000000, +0.000000, +1.000000, +0.000000,
 			+0.000000, +1.000000, +1.000000, +1.000000,
+                        /* +0x80 for flushing (3*16 bit indices) */
+                        0, 0,
 	};
 	struct pipe_resource *prsc = pipe_buffer_create(pctx->screen,
 			PIPE_BIND_CUSTOM, PIPE_USAGE_IMMUTABLE, sizeof(init_shader_const));

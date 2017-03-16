@@ -77,7 +77,7 @@ fd_draw(struct fd_batch *batch, struct fd_ringbuffer *ring,
 		OUT_RING(ring, 0);
 	}
 
-	if (is_a20x(ctx->screen)) {
+	if (is_a20x(batch->ctx->screen)) {
 		/* A20x (or at least A205) stores NumIndices in the high bits
 		  It also doesn't like bit 14 being set... */
 		num_args = 2;
@@ -104,7 +104,7 @@ fd_draw(struct fd_batch *batch, struct fd_ringbuffer *ring,
 		OUT_RING(ring,
 			(DRAW(primtype, src_sel, idx_type, vismode, instances) & di_and) | di_or);
 	}
-	if (!is_a20x(ctx->screen))
+	if (!is_a20x(batch->ctx->screen))
 		OUT_RING(ring, count);             /* NumIndices */
 
 	if (idx_buffer) {

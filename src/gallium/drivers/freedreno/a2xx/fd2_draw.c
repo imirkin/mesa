@@ -39,8 +39,8 @@
 #include "fd2_emit.h"
 #include "fd2_program.h"
 #include "fd2_util.h"
+#include "fd20x_util.h"
 #include "fd2_zsa.h"
-
 
 static void
 emit_cacheflush(struct fd_ringbuffer *ring)
@@ -101,13 +101,14 @@ fd2_draw_vbo(struct fd_context *ctx, const struct pipe_draw_info *info,
 	OUT_PKT0(ring, REG_A2XX_TC_CNTL_STATUS, 1);
 	OUT_RING(ring, A2XX_TC_CNTL_STATUS_L2_INVALIDATE);
 
-	OUT_WFI (ring);
-
 	if (!is_a20x(ctx->screen)) {
+		OUT_WFI (ring);
 		OUT_PKT3(ring, CP_SET_CONSTANT, 3);
 		OUT_RING(ring, CP_REG(REG_A2XX_VGT_MAX_VTX_INDX));
 		OUT_RING(ring, info->max_index);        /* VGT_MAX_VTX_INDX */
 		OUT_RING(ring, info->min_index);        /* VGT_MIN_VTX_INDX */
+	} else {
+		fd20x_pre_draw(ctx->batch, info->index_size);
 	}
 
 	fd_draw_emit(ctx->batch, ring, ctx->primtypes[info->mode],
@@ -289,6 +290,8 @@ fd2_clear(struct fd_context *ctx, unsigned buffers,
 		OUT_RING(ring, CP_REG(REG_A2XX_VGT_MAX_VTX_INDX));
 		OUT_RING(ring, 3);                 /* VGT_MAX_VTX_INDX */
 		OUT_RING(ring, 0);                 /* VGT_MIN_VTX_INDX */
+	} else {
+		fd20x_pre_draw(ctx->batch, false);
 	}
 
 	fd_draw(ctx->batch, ring, DI_PT_RECTLIST, IGNORE_VISIBILITY,
