@@ -566,12 +566,12 @@ nouveau_create_decoder(struct pipe_context *context,
    dec->base.flush = nouveau_decoder_flush;
    dec->screen = screen;
 
-   ret = nouveau_bo_new(dec->screen->device, NOUVEAU_BO_GART | NOUVEAU_BO_MAP,
+   ret = nouveau_bo_new(dec->screen->device, NOUVEAU_BO_VRAM | NOUVEAU_BO_MAP,
                         0, 1024 * 1024, NULL, &dec->cmd_bo);
    if (ret)
       goto fail;
 
-   ret = nouveau_bo_new(dec->screen->device, NOUVEAU_BO_GART | NOUVEAU_BO_MAP,
+   ret = nouveau_bo_new(dec->screen->device, NOUVEAU_BO_VRAM | NOUVEAU_BO_MAP,
                         0, width * height * 6, NULL, &dec->data_bo);
    if (ret)
       goto fail;
@@ -594,10 +594,10 @@ nouveau_create_decoder(struct pipe_context *context,
    PUSH_DATA (push, dec->mpeg->handle);
 
    BEGIN_NV04(push, NV31_MPEG(DMA_CMD), 1);
-   PUSH_DATA (push, nv04_data.gart);
+   PUSH_DATA (push, nv04_data.vram);
 
    BEGIN_NV04(push, NV31_MPEG(DMA_DATA), 1);
-   PUSH_DATA (push, nv04_data.gart);
+   PUSH_DATA (push, nv04_data.vram);
 
    BEGIN_NV04(push, NV31_MPEG(DMA_IMAGE), 1);
    PUSH_DATA (push, nv04_data.vram);
