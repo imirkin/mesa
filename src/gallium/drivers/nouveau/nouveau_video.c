@@ -32,11 +32,26 @@
 #include "util/u_format.h"
 #include "util/u_sampler.h"
 
+#include <nouveau_drm.h>
+
 static int
 nouveau_vpe_init(struct nouveau_decoder *dec) {
    int ret;
    if (dec->cmds)
       return 0;
+   if (!dec->use_gart) {
+      dec->cmds = malloc(dec->cmd_bo->size);
+      if (!dec->cmds) {
+         debug_printf("Error allocating cmd buffer.\n");
+         return -1;
+      }
+      dec->data = malloc(dec->data_bo->size);
+      if (!dec->cmds) {
+         free(dec->cmds);
+         debug_printf("Error allocating cmd buffer.\n");
+         return -1;
+      }
+   }
    ret = nouveau_bo_map(dec->cmd_bo, NOUVEAU_BO_RDWR, dec->client);
    if (ret) {
       debug_printf("Mapping cmd bo: %s\n", strerror(-ret));
@@ -505,6 +520,7 @@ nouveau_create_decoder(struct pipe_context *context,
    struct nouveau_object *mpeg = NULL;
    struct nouveau_decoder *dec;
    struct nouveau_pushbuf *push;
+   uint32_t domain;
    int ret;
    bool is8274 = screen->device->chipset > 0x80;
 
@@ -566,12 +582,25 @@ nouveau_create_decoder(struct pipe_context *context,
    dec->base.flush = nouveau_decoder_flush;
    dec->screen = screen;
 
-   ret = nouveau_bo_new(dec->screen->device, NOUVEAU_BO_VRAM | NOUVEAU_BO_MAP,
+   if (getenv("NOUVEAU_VIDEO_VRAM")) {
+      dec->use_gart = false;
+   } else if (screen->device->chipset == 0x4a) {
+      uint64_t bus_type;
+      ret = nouveau_getparam(screen->device, NOUVEAU_GETPARAM_BUS_TYPE, &bus_type);
+      if (ret)
+         goto fail;
+      dec->use_gart = bus_type != NV_PCI;
+   } else {
+      dec->use_gart = true;
+   }
+   domain = dec->use_gart ? (NOUVEAU_BO_GART | NOUVEAU_BO_MAP) : NOUVEAU_BO_VRAM;
+
+   ret = nouveau_bo_new(dec->screen->device, domain,
                         0, 1024 * 1024, NULL, &dec->cmd_bo);
    if (ret)
       goto fail;
 
-   ret = nouveau_bo_new(dec->screen->device, NOUVEAU_BO_VRAM | NOUVEAU_BO_MAP,
+   ret = nouveau_bo_new(dec->screen->device, domain,
                         0, width * height * 6, NULL, &dec->data_bo);
    if (ret)
       goto fail;
@@ -594,10 +623,10 @@ nouveau_create_decoder(struct pipe_context *context,
    PUSH_DATA (push, dec->mpeg->handle);
 
    BEGIN_NV04(push, NV31_MPEG(DMA_CMD), 1);
-   PUSH_DATA (push, nv04_data.vram);
+   PUSH_DATA (push, dec->use_gart ? nv04_data.gart : nv04_data.vram);
 
    BEGIN_NV04(push, NV31_MPEG(DMA_DATA), 1);
-   PUSH_DATA (push, nv04_data.vram);
+   PUSH_DATA (push, dec->use_gart ? nv04_data.gart : nv04_data.vram);
 
    BEGIN_NV04(push, NV31_MPEG(DMA_IMAGE), 1);
    PUSH_DATA (push, nv04_data.vram);

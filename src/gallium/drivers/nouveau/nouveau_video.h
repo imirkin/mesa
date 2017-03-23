@@ -25,6 +25,7 @@ struct nouveau_decoder {
    struct nouveau_bufctx *bufctx;
    struct nouveau_object *mpeg;
    struct nouveau_bo *cmd_bo, *data_bo, *fence_bo;
+   bool use_gart;
 
    unsigned *fence_map;
    unsigned fence_seq;
