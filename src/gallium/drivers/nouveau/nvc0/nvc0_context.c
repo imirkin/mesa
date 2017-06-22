@@ -401,6 +401,8 @@ nvc0_create(struct pipe_screen *pscreen, void *priv, unsigned ctxflags)
    nvc0_init_state_functions(nvc0);
    nvc0_init_transfer_functions(nvc0);
    nvc0_init_resource_functions(pipe);
+   if (nvc0->screen->base.class_3d >= NVE4_3D_CLASS)
+      nvc0_init_bindless_functions(pipe);
 
    nvc0->base.invalidate_resource_storage = nvc0_invalidate_resource_storage;
 
