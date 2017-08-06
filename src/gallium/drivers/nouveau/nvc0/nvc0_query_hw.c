@@ -181,6 +181,9 @@ nvc0_hw_begin_query(struct nvc0_context *nvc0, struct nvc0_query *q)
    case PIPE_QUERY_SO_OVERFLOW_PREDICATE:
       nvc0_hw_query_get(push, q, 0x10, 0x03005002 | (q->index << 5));
       break;
+   case PIPE_QUERY_SO_OVERFLOW_ANY_PREDICATE:
+      nvc0_hw_query_get(push, q, 0x10, 0x0f005002);
+      break;
    case PIPE_QUERY_TIME_ELAPSED:
       nvc0_hw_query_get(push, q, 0x10, 0x00005002);
       break;
@@ -247,6 +250,9 @@ nvc0_hw_end_query(struct nvc0_context *nvc0, struct nvc0_query *q)
       /* PRIMS_DROPPED doesn't write sequence, use a ZERO query to sync on */
       nvc0_hw_query_get(push, q, 0x00, 0x03005002 | (q->index << 5));
       nvc0_hw_query_get(push, q, 0x20, 0x00005002);
+      break;
+   case PIPE_QUERY_SO_OVERFLOW_ANY_PREDICATE:
+      nvc0_hw_query_get(push, q, 0, 0x0f005002);
       break;
    case PIPE_QUERY_TIMESTAMP:
    case PIPE_QUERY_TIME_ELAPSED:
@@ -334,6 +340,7 @@ nvc0_hw_get_query_result(struct nvc0_context *nvc0, struct nvc0_query *q,
       res64[1] = data64[2] - data64[6];
       break;
    case PIPE_QUERY_SO_OVERFLOW_PREDICATE:
+   case PIPE_QUERY_SO_OVERFLOW_ANY_PREDICATE:
       res8[0] = data64[0] != data64[2];
       break;
    case PIPE_QUERY_TIMESTAMP:
@@ -527,6 +534,7 @@ nvc0_hw_create_query(struct nvc0_context *nvc0, unsigned type, unsigned index)
       break;
    case PIPE_QUERY_SO_STATISTICS:
    case PIPE_QUERY_SO_OVERFLOW_PREDICATE:
+   case PIPE_QUERY_SO_OVERFLOW_ANY_PREDICATE:
       hq->is64bit = true;
       space = 64;
       break;
