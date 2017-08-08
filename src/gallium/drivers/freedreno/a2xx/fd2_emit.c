@@ -139,6 +139,9 @@ emit_texture(struct fd_ringbuffer *ring, struct fd_context *ctx,
 	OUT_PKT3(ring, CP_SET_CONSTANT, 7);
 	OUT_RING(ring, 0x00010000 + (0x6 * const_idx));
 
+        assert(sampler);
+        assert(view);
+
 	OUT_RING(ring, sampler->tex0 | view->tex0);
 	OUT_RELOC(ring, fd_resource(view->base.texture)->bo, 0, view->fmt, 0);
 	OUT_RING(ring, view->tex2);
