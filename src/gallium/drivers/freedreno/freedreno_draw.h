@@ -24,6 +24,7 @@
  *
  * Authors:
  *    Rob Clark <robclark@freedesktop.org>
+ *    Martin Fuzzey <mfuzzey@parkeon.com>
  */
 
 #ifndef FREEDRENO_DRAW_H_

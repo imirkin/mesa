@@ -19,6 +19,11 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
+ *
+ * Authors:
+ *    Rob Clark <robclark@freedesktop.org>
+ *    Martin Fuzzey <mfuzzey@parkeon.com>
+ *    Wladimir J. van der Laan <laanwj@gmail.com>
  */
 
 #ifndef IR2_H_

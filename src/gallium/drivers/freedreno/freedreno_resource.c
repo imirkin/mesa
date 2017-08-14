@@ -24,6 +24,8 @@
  *
  * Authors:
  *    Rob Clark <robclark@freedesktop.org>
+ *    Martin Fuzzey <mfuzzey@parkeon.com>
+ *    Wladimir J. van der Laan <laanwj@gmail.com>
  */
 
 #include "util/u_format.h"
