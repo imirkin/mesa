@@ -62,7 +62,8 @@ fd2_rasterizer_state_create(struct pipe_context *pctx,
 		A2XX_PA_SC_LINE_STIPPLE_LINE_PATTERN(cso->line_stipple_pattern) |
 		A2XX_PA_SC_LINE_STIPPLE_REPEAT_COUNT(cso->line_stipple_factor) : 0;
 
-	so->pa_cl_clip_cntl = 0; // TODO
+	so->pa_cl_clip_cntl =
+		cso->clip_halfz ? A2XX_PA_CL_CLIP_CNTL_DX_CLIP_SPACE_DEF__MASK : 0;
 
 	so->pa_su_vtx_cntl =
 		A2XX_PA_SU_VTX_CNTL_PIX_CENTER(cso->half_pixel_center ? PIXCENTER_OGL : PIXCENTER_D3D) |
