@@ -1167,6 +1167,20 @@ translate_instruction(struct fd2_compile_context *ctx,
 		instr = ir2_instr_create_alu(cf, TRUNCv, ~0);
 		add_regs_vector_1(ctx, inst, instr);
 		break;
+	case TGSI_OPCODE_KILL:
+		instr = ir2_instr_create_alu(cf, ~0, KILLONEs);
+		add_regs_dummy_vector(instr);
+		ctx->cf = ir2_cf_create(ctx->so->ir, EXEC);
+		break;
+	case TGSI_OPCODE_KILL_IF:
+		instr = ir2_instr_create_alu(cf, KILLGTEv, ~0);
+		ir2_reg_create(instr, 0, "____", 0); // dummy dst
+		add_src_reg(ctx, instr, &inst->Src[0].Register);
+		add_src_reg(ctx, instr, &inst->Src[0].Register);
+		instr->regs[1]->flags ^= IR2_REG_NEGATE;
+		instr->regs[2]->flags ^= IR2_REG_NEGATE;
+		ctx->cf = ir2_cf_create(ctx->so->ir, EXEC);
+		break;
 	default:
 		DBG("unknown TGSI opc: %s", tgsi_get_opcode_name(opc));
 		tgsi_dump(ctx->so->tokens, 0);
