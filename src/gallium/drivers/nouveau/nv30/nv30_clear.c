@@ -58,6 +58,8 @@ nv30_clear(struct pipe_context *pipe, unsigned buffers,
    struct pipe_framebuffer_state *fb = &nv30->framebuffer;
    uint32_t colr = 0, zeta = 0, mode = 0;
 
+   push->user_priv = &nv30->bufctx;
+
    if (!nv30_state_validate(nv30, NV30_NEW_FRAMEBUFFER | NV30_NEW_SCISSOR, true))
       return;
 

@@ -165,13 +165,15 @@ static void
 nv30_fp_state_bind(struct pipe_context *pipe, void *hwcso)
 {
    struct nv30_context *nv30 = nv30_context(pipe);
+   struct nouveau_pushbuf *push = nv30->base.pushbuf;
    struct nv30_fragprog *fp = hwcso;
 
    /* reset the bucftx so that we don't keep a dangling reference to the fp
     * code
     */
+   push->user_priv = &nv30->bufctx;
    if (fp != nv30->state.fragprog)
-      PUSH_RESET(nv30->base.pushbuf, BUFCTX_FRAGPROG);
+      PUSH_RESET(push, BUFCTX_FRAGPROG);
 
    nv30->fragprog.program = fp;
    nv30->dirty |= NV30_NEW_FRAGPROG;
