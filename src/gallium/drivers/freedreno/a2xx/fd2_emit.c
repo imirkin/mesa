@@ -337,6 +337,81 @@ fd2_emit_state(struct fd_context *ctx, const enum fd_dirty_3d_state dirty)
 		emit_textures(ring, ctx);
 }
 
+void
+fd2_emit_state_for_clear(struct fd_context *ctx)
+{
+	struct fd_ringbuffer *ring = ctx->batch->draw;
+	struct pipe_scissor_state *scissor = fd_context_get_scissor(ctx);
+	int width = scissor->maxx - scissor->minx;
+	int height = scissor->maxy - scissor->miny;
+
+	/* TODO: figure out what of this state is really required,
+	 * and what is already set in fd2_clear itself. */
+
+	OUT_PKT3(ring, CP_SET_CONSTANT, 3);
+	OUT_RING(ring, CP_REG(REG_A2XX_PA_CL_CLIP_CNTL));
+	OUT_RING(ring, 0x0);					 /* PA_CL_CLIP_CNTL */
+	OUT_RING(ring, 0x90246);				 /* SU_SC_MODE_CNTL */
+
+	OUT_PKT3(ring, CP_SET_CONSTANT, 5);
+	OUT_RING(ring, CP_REG(REG_A2XX_PA_SU_POINT_SIZE));
+	OUT_RING(ring, 0x80008);				 /* PA_SU_POINT_SIZE */
+	OUT_RING(ring, 0x0);					 /* PA_SU_POINT_MINMAX */
+	OUT_RING(ring, 0x8);					 /* PA_SU_LINE_CNTL */
+	OUT_RING(ring, 0x0);					 /* PA_SC_LINE_STIPPLE */
+
+	OUT_PKT3(ring, CP_SET_CONSTANT, 6);
+	OUT_RING(ring, CP_REG(REG_A2XX_PA_SU_VTX_CNTL));
+	OUT_RING(ring, 0x1);					 /* SU_VTX_CNTL */
+	OUT_RING(ring, fui(1.0));                /* PA_CL_GB_VERT_CLIP_ADJ */
+	OUT_RING(ring, fui(1.0));                /* PA_CL_GB_VERT_DISC_ADJ */
+	OUT_RING(ring, fui(1.0));                /* PA_CL_GB_HORZ_CLIP_ADJ */
+	OUT_RING(ring, fui(1.0));                /* PA_CL_GB_HORZ_DISC_ADJ */
+
+	OUT_PKT3(ring, CP_SET_CONSTANT, 3);
+	OUT_RING(ring, CP_REG(REG_A2XX_PA_SC_WINDOW_SCISSOR_TL));
+	OUT_RING(ring, xy2d(scissor->minx,       /* PA_SC_WINDOW_SCISSOR_TL */
+			scissor->miny));
+	OUT_RING(ring, xy2d(scissor->maxx,       /* PA_SC_WINDOW_SCISSOR_BR */
+			scissor->maxy));
+
+	ctx->batch->max_scissor.minx = MIN2(ctx->batch->max_scissor.minx, scissor->minx);
+	ctx->batch->max_scissor.miny = MIN2(ctx->batch->max_scissor.miny, scissor->miny);
+	ctx->batch->max_scissor.maxx = MAX2(ctx->batch->max_scissor.maxx, scissor->maxx);
+	ctx->batch->max_scissor.maxy = MAX2(ctx->batch->max_scissor.maxy, scissor->maxy);
+
+	OUT_PKT3(ring, CP_SET_CONSTANT, 7);
+	OUT_RING(ring, CP_REG(REG_A2XX_PA_CL_VPORT_XSCALE));
+	OUT_RING(ring, fui(width/2.0));    /* PA_CL_VPORT_XSCALE */
+	OUT_RING(ring, fui(width/2.0));    /* PA_CL_VPORT_XOFFSET */
+	OUT_RING(ring, fui(-height/2.0));  /* PA_CL_VPORT_YSCALE */
+	OUT_RING(ring, fui(height/2.0));   /* PA_CL_VPORT_YOFFSET */
+	OUT_RING(ring, fui(0.5));          /* PA_CL_VPORT_ZSCALE */
+	OUT_RING(ring, fui(0.5));          /* PA_CL_VPORT_ZOFFSET */
+
+	OUT_PKT3(ring, CP_SET_CONSTANT, 2);
+	OUT_RING(ring, CP_REG(REG_A2XX_PA_CL_VTE_CNTL));
+	OUT_RING(ring, A2XX_PA_CL_VTE_CNTL_VTX_W0_FMT |
+			A2XX_PA_CL_VTE_CNTL_VPORT_X_SCALE_ENA |
+			A2XX_PA_CL_VTE_CNTL_VPORT_X_OFFSET_ENA |
+			A2XX_PA_CL_VTE_CNTL_VPORT_Y_SCALE_ENA |
+			A2XX_PA_CL_VTE_CNTL_VPORT_Y_OFFSET_ENA |
+			A2XX_PA_CL_VTE_CNTL_VPORT_Z_SCALE_ENA |
+			A2XX_PA_CL_VTE_CNTL_VPORT_Z_OFFSET_ENA);
+
+	OUT_PKT3(ring, CP_SET_CONSTANT, 2);
+	OUT_RING(ring, CP_REG(REG_A2XX_RB_COLORCONTROL));
+	OUT_RING(ring, 0x1c20);
+
+	OUT_PKT3(ring, CP_SET_CONSTANT, 2);
+	OUT_RING(ring, CP_REG(REG_A2XX_RB_BLEND_CONTROL));
+	OUT_RING(ring, 0);
+
+	OUT_PKT3(ring, CP_SET_CONSTANT, 2);
+	OUT_RING(ring, CP_REG(REG_A2XX_RB_COLOR_MASK));
+	OUT_RING(ring, 0xf);
+}
+
 /* emit per-context initialization:
  */
 void

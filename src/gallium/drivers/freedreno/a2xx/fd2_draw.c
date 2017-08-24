@@ -143,10 +143,8 @@ fd2_clear(struct fd_context *ctx, unsigned buffers,
 	if ((buffers & PIPE_CLEAR_COLOR) && fb->nr_cbufs)
 		colr  = pack_rgba(fb->cbufs[0]->format, color->f);
 
-	/* emit generic state now: */
-	fd2_emit_state(ctx, ctx->dirty &
-			(FD_DIRTY_BLEND | FD_DIRTY_VIEWPORT |
-					FD_DIRTY_FRAMEBUFFER | FD_DIRTY_SCISSOR));
+	/* emit generic state for clear now: */
+	fd2_emit_state_for_clear(ctx);
 
 	fd2_emit_vertex_bufs(ring, 0x9c, (struct fd2_vertex_buf[]) {
 			{ .prsc = fd2_ctx->solid_vertexbuf, .size = 48 },
