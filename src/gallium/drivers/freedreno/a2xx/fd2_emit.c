@@ -302,13 +302,13 @@ fd2_emit_state(struct fd_context *ctx, const enum fd_dirty_3d_state dirty)
 				(dirty & FD_DIRTY_PROG) ? ctx->prog.fp : NULL);
 	}
 
-	if (dirty & (FD_DIRTY_BLEND | FD_DIRTY_ZSA)) {
+	if (blend && zsa && dirty & (FD_DIRTY_BLEND | FD_DIRTY_ZSA)) {
 		OUT_PKT3(ring, CP_SET_CONSTANT, 2);
 		OUT_RING(ring, CP_REG(REG_A2XX_RB_COLORCONTROL));
 		OUT_RING(ring, zsa->rb_colorcontrol | blend->rb_colorcontrol);
 	}
 
-	if (dirty & (FD_DIRTY_BLEND | FD_DIRTY_FRAMEBUFFER)) {
+	if (blend && dirty & (FD_DIRTY_BLEND | FD_DIRTY_FRAMEBUFFER)) {
 		enum pipe_format format =
 			pipe_surface_format(ctx->batch->framebuffer.cbufs[0]);
 		bool has_alpha = util_format_has_alpha(format);
