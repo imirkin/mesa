@@ -138,10 +138,7 @@ fd2_clear(struct fd_context *ctx, unsigned buffers,
 	struct fd2_context *fd2_ctx = fd2_context(ctx);
 	struct fd_ringbuffer *ring = ctx->batch->draw;
 	struct pipe_framebuffer_state *fb = &ctx->batch->framebuffer;
-	uint32_t reg, colr = 0;
-
-	if ((buffers & PIPE_CLEAR_COLOR) && fb->nr_cbufs)
-		colr  = pack_rgba(fb->cbufs[0]->format, color->f);
+	uint32_t reg;
 
 	/* emit generic state for clear now: */
 	fd2_emit_state_for_clear(ctx);
