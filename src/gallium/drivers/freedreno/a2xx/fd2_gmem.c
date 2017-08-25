@@ -70,6 +70,10 @@ emit_gmem2mem_surf(struct fd_batch *batch, uint32_t base,
 {
 	struct fd_ringbuffer *ring = batch->gmem;
 	struct fd_resource *rsc = fd_resource(psurf->texture);
+	enum pipe_format format = psurf->format;
+	if (util_format_is_depth_or_stencil(format))
+		format = PIPE_FORMAT_B8G8R8A8_UNORM;
+
 	uint32_t swap = fmt2swap(psurf->format);
 	if (psurf->u.tex.level != 0) // TODO: handle non-zero levels
 		return;
@@ -78,7 +82,7 @@ emit_gmem2mem_surf(struct fd_batch *batch, uint32_t base,
 	OUT_RING(ring, CP_REG(REG_A2XX_RB_COLOR_INFO));
 	OUT_RING(ring, A2XX_RB_COLOR_INFO_SWAP(swap) |
 			A2XX_RB_COLOR_INFO_BASE(base) |
-			A2XX_RB_COLOR_INFO_FORMAT(fd2_pipe2color(psurf->format)));
+			A2XX_RB_COLOR_INFO_FORMAT(fd2_pipe2color(format)));
 
 	OUT_PKT3(ring, CP_SET_CONSTANT, 5);
 	OUT_RING(ring, CP_REG(REG_A2XX_RB_COPY_CONTROL));
@@ -86,7 +90,7 @@ emit_gmem2mem_surf(struct fd_batch *batch, uint32_t base,
 	OUT_RELOCW(ring, rsc->bo, 0, 0, 0);     /* RB_COPY_DEST_BASE */
 	OUT_RING(ring, rsc->slices[0].pitch >> 5); /* RB_COPY_DEST_PITCH */
 	OUT_RING(ring,                          /* RB_COPY_DEST_INFO */
-			A2XX_RB_COPY_DEST_INFO_FORMAT(fd2_pipe2color(psurf->format)) |
+			A2XX_RB_COPY_DEST_INFO_FORMAT(fd2_pipe2color(format)) |
 			A2XX_RB_COPY_DEST_INFO_LINEAR |
 			A2XX_RB_COPY_DEST_INFO_SWAP(swap) |
 			A2XX_RB_COPY_DEST_INFO_WRITE_RED |
@@ -114,6 +118,7 @@ fd2_emit_tile_gmem2mem(struct fd_batch *batch, struct fd_tile *tile)
 {
 	struct fd_context *ctx = batch->ctx;
 	struct fd2_context *fd2_ctx = fd2_context(ctx);
+	struct fd_gmem_stateobj *gmem = &ctx->gmem;
 	struct fd_ringbuffer *ring = batch->gmem;
 	struct pipe_framebuffer_state *pfb = &batch->framebuffer;
 
@@ -176,10 +181,10 @@ fd2_emit_tile_gmem2mem(struct fd_batch *batch, struct fd_tile *tile)
 			A2XX_RB_COPY_DEST_OFFSET_Y(tile->yoff));
 
 	if (batch->resolve & (FD_BUFFER_DEPTH | FD_BUFFER_STENCIL))
-		emit_gmem2mem_surf(batch, tile->bin_w * tile->bin_h, pfb->zsbuf);
+		emit_gmem2mem_surf(batch, gmem->zsbuf_base[0], pfb->zsbuf);
 
 	if (batch->resolve & FD_BUFFER_COLOR)
-		emit_gmem2mem_surf(batch, 0, pfb->cbufs[0]);
+		emit_gmem2mem_surf(batch, gmem->cbuf_base[0], pfb->cbufs[0]);
 
 	OUT_PKT3(ring, CP_SET_CONSTANT, 2);
 	OUT_RING(ring, CP_REG(REG_A2XX_RB_MODECONTROL));
@@ -195,16 +200,19 @@ emit_mem2gmem_surf(struct fd_batch *batch, uint32_t base,
 	struct fd_ringbuffer *ring = batch->gmem;
 	struct fd_resource *rsc = fd_resource(psurf->texture);
 	uint32_t swiz;
+	enum pipe_format format = psurf->format;
+	if (util_format_is_depth_or_stencil(format))
+		format = PIPE_FORMAT_B8G8R8A8_UNORM;
 
 	if (psurf->u.tex.level != 0) // TODO: handle non-zero levels
 		return;
 	OUT_PKT3(ring, CP_SET_CONSTANT, 2);
 	OUT_RING(ring, CP_REG(REG_A2XX_RB_COLOR_INFO));
-	OUT_RING(ring, A2XX_RB_COLOR_INFO_SWAP(fmt2swap(psurf->format)) |
+	OUT_RING(ring, A2XX_RB_COLOR_INFO_SWAP(fmt2swap(format)) |
 			A2XX_RB_COLOR_INFO_BASE(base) |
-			A2XX_RB_COLOR_INFO_FORMAT(fd2_pipe2color(psurf->format)));
+			A2XX_RB_COLOR_INFO_FORMAT(fd2_pipe2color(format)));
 
-	swiz = fd2_tex_swiz(psurf->format, PIPE_SWIZZLE_X, PIPE_SWIZZLE_Y,
+	swiz = fd2_tex_swiz(format, PIPE_SWIZZLE_X, PIPE_SWIZZLE_Y,
 			PIPE_SWIZZLE_Z, PIPE_SWIZZLE_W);
 
 	/* emit fb as a texture: */
@@ -214,8 +222,7 @@ emit_mem2gmem_surf(struct fd_batch *batch, uint32_t base,
 			A2XX_SQ_TEX_0_CLAMP_Y(SQ_TEX_WRAP) |
 			A2XX_SQ_TEX_0_CLAMP_Z(SQ_TEX_WRAP) |
 			A2XX_SQ_TEX_0_PITCH(rsc->slices[0].pitch));
-	OUT_RELOC(ring, rsc->bo, 0,
-			fd2_pipe2surface(psurf->format) | 0x800, 0);
+	OUT_RELOC(ring, rsc->bo, 0, fd2_pipe2surface(format) | 0x800, 0);
 	OUT_RING(ring, A2XX_SQ_TEX_2_WIDTH(psurf->width - 1) |
 			A2XX_SQ_TEX_2_HEIGHT(psurf->height - 1));
 	OUT_RING(ring, 0x01000000 | // XXX
@@ -243,6 +250,7 @@ fd2_emit_tile_mem2gmem(struct fd_batch *batch, struct fd_tile *tile)
 {
 	struct fd_context *ctx = batch->ctx;
 	struct fd2_context *fd2_ctx = fd2_context(ctx);
+	struct fd_gmem_stateobj *gmem = &ctx->gmem;
 	struct fd_ringbuffer *ring = batch->gmem;
 	struct pipe_framebuffer_state *pfb = &batch->framebuffer;
 	unsigned bin_w = tile->bin_w;
@@ -341,10 +349,10 @@ fd2_emit_tile_mem2gmem(struct fd_batch *batch, struct fd_tile *tile)
 	OUT_RING(ring, 0x00000000);
 
 	if (fd_gmem_needs_restore(batch, tile, FD_BUFFER_DEPTH | FD_BUFFER_STENCIL))
-		emit_mem2gmem_surf(batch, bin_w * bin_h, pfb->zsbuf);
+		emit_mem2gmem_surf(batch, gmem->zsbuf_base[0], pfb->zsbuf);
 
 	if (fd_gmem_needs_restore(batch, tile, FD_BUFFER_COLOR))
-		emit_mem2gmem_surf(batch, 0, pfb->cbufs[0]);
+		emit_mem2gmem_surf(batch, gmem->cbuf_base[0], pfb->cbufs[0]);
 
 	/* TODO blob driver seems to toss in a CACHE_FLUSH after each DRAW_INDX.. */
 }
@@ -367,7 +375,7 @@ fd2_emit_tile_init(struct fd_batch *batch)
 	OUT_RING(ring, gmem->bin_w);                 /* RB_SURFACE_INFO */
 	OUT_RING(ring, A2XX_RB_COLOR_INFO_SWAP(fmt2swap(format)) |
 			A2XX_RB_COLOR_INFO_FORMAT(fd2_pipe2color(format)));
-	reg = A2XX_RB_DEPTH_INFO_DEPTH_BASE(align(gmem->bin_w * gmem->bin_h, 4));
+	reg = A2XX_RB_DEPTH_INFO_DEPTH_BASE(gmem->zsbuf_base[0]);
 	if (pfb->zsbuf)
 		reg |= A2XX_RB_DEPTH_INFO_DEPTH_FORMAT(fd_pipe2depth(pfb->zsbuf->format));
 	OUT_RING(ring, reg);                         /* RB_DEPTH_INFO */
@@ -383,7 +391,7 @@ fd2_emit_tile_prep(struct fd_batch *batch, struct fd_tile *tile)
 
 	OUT_PKT3(ring, CP_SET_CONSTANT, 2);
 	OUT_RING(ring, CP_REG(REG_A2XX_RB_COLOR_INFO));
-	OUT_RING(ring, A2XX_RB_COLOR_INFO_SWAP(1) | /* RB_COLOR_INFO */
+	OUT_RING(ring, A2XX_RB_COLOR_INFO_SWAP(fmt2swap(format)) | /* RB_COLOR_INFO */
 			A2XX_RB_COLOR_INFO_FORMAT(fd2_pipe2color(format)));
 
 	/* setup screen scissor for current tile (same for mem2gmem): */
