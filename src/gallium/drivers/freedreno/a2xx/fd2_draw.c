@@ -94,7 +94,7 @@ fd2_draw_vbo(struct fd_context *ctx, const struct pipe_draw_info *info,
 
 	OUT_PKT3(ring, CP_SET_CONSTANT, 2);
 	OUT_RING(ring, CP_REG(REG_A2XX_VGT_INDX_OFFSET));
-	OUT_RING(ring, info->start);
+	OUT_RING(ring, info->index_size ? 0x00000000 : info->start); /* Offset for indexed draw is already taken into account in fd_draw_emit */
 
 	OUT_PKT3(ring, CP_SET_CONSTANT, 2);
 	OUT_RING(ring, CP_REG(REG_A2XX_VGT_VERTEX_REUSE_BLOCK_CNTL));
