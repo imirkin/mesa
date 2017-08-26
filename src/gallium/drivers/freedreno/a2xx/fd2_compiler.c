@@ -1022,6 +1022,7 @@ translate_instruction(struct fd2_compile_context *ctx,
 		struct tgsi_full_instruction *inst)
 {
 	unsigned opc = inst->Instruction.Opcode;
+	struct tgsi_src_register tmp_const;
 	struct ir2_instruction *instr;
 	static struct ir2_cf *cf;
 
@@ -1059,7 +1060,8 @@ translate_instruction(struct fd2_compile_context *ctx,
 			}
 		}
 	}
-
+	if (opc == TGSI_OPCODE_KILL || opc == TGSI_OPCODE_KILL_IF)
+		ctx->cf = NULL;
 	cf = next_exec_cf(ctx);
 
 	/* TODO turn this into a table: */
@@ -1170,16 +1172,17 @@ translate_instruction(struct fd2_compile_context *ctx,
 	case TGSI_OPCODE_KILL:
 		instr = ir2_instr_create_alu(cf, ~0, KILLONEs);
 		add_regs_dummy_vector(instr);
-		ctx->cf = ir2_cf_create(ctx->so->ir, EXEC);
+		ctx->cf = NULL;
 		break;
 	case TGSI_OPCODE_KILL_IF:
-		instr = ir2_instr_create_alu(cf, KILLGTEv, ~0);
+		instr = ir2_instr_create_alu(cf, KILLGTv, ~0);
 		ir2_reg_create(instr, 0, "____", 0); // dummy dst
+		get_immediate(ctx, &tmp_const, fui(0.0));
 		add_src_reg(ctx, instr, &inst->Src[0].Register);
-		add_src_reg(ctx, instr, &inst->Src[0].Register);
-		instr->regs[1]->flags ^= IR2_REG_NEGATE;
-		instr->regs[2]->flags ^= IR2_REG_NEGATE;
-		ctx->cf = ir2_cf_create(ctx->so->ir, EXEC);
+		add_src_reg(ctx, instr, &tmp_const);
+		//instr->regs[1]->flags ^= IR2_REG_NEGATE;
+		//instr->regs[2]->flags ^= IR2_REG_NEGATE;
+		ctx->cf = NULL;
 		break;
 	default:
 		DBG("unknown TGSI opc: %s", tgsi_get_opcode_name(opc));
