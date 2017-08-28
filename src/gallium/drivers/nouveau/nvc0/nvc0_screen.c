@@ -373,8 +373,8 @@ nvc0_screen_get_shader_param(struct pipe_screen *pscreen,
        * less than what the address space layout permits, so don't add TEXCOORD,
        * COLOR, etc. here.
        */
-      if (shader == PIPE_SHADER_FRAGMENT)
-         return 0x1f0 / 16;
+      //if (shader == PIPE_SHADER_FRAGMENT)
+      //   return 0x1f0 / 16;
       /* Actually this counts CLIPVERTEX, which occupies the last generic slot,
        * and excludes 0x60 per-patch inputs.
        */
