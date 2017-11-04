@@ -246,6 +246,15 @@ nv98_create_decoder(struct pipe_context *context,
    if (ret)
       goto fail;
 
+#ifdef DEBUG
+   /* Zero out reference frame data. This makes it more obvious when the
+    * decoder reads from uninitialized reference frames. Note that 0 in YUV
+    * space works out to a greenish color.
+    */
+   nouveau_bo_map(dec->ref_bo, NOUVEAU_BO_RDWR, screen->client);
+   memset(dec->ref_bo->map, 0, dec->ref_bo->size);
+#endif
+
    timeout = 0;
 
    BEGIN_NV04(push[0], SUBC_BSP(0x200), 2);
