@@ -419,6 +419,7 @@ static nv50_ir::DataFile translateFile(uint file)
 {
    switch (file) {
    case TGSI_FILE_CONSTANT:        return nv50_ir::FILE_MEMORY_CONST;
+   case TGSI_FILE_CONSTBUF:        return nv50_ir::FILE_MEMORY_CONST;
    case TGSI_FILE_INPUT:           return nv50_ir::FILE_SHADER_INPUT;
    case TGSI_FILE_OUTPUT:          return nv50_ir::FILE_SHADER_OUTPUT;
    case TGSI_FILE_TEMPORARY:       return nv50_ir::FILE_GPR;
@@ -2687,6 +2688,7 @@ Converter::handleLOAD(Value *dst0[4])
 
    switch (tgsi.getSrc(0).getFile()) {
    case TGSI_FILE_BUFFER:
+   case TGSI_FILE_CONSTBUF:
    case TGSI_FILE_MEMORY:
       for (c = 0; c < 4; ++c) {
          if (!dst0[c])
