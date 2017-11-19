@@ -63,6 +63,14 @@ rebind_resource(struct fd_context *ctx, struct pipe_resource *prsc)
 			ctx->dirty |= FD_DIRTY_VTXBUF;
 	}
 
+	/* RTs */
+	for (unsigned i = 0; i < ctx->batch->framebuffer.nr_cbufs; i++) {
+		if (ctx->batch->framebuffer.cbufs[i] && ctx->batch->framebuffer.cbufs[i]->texture == prsc) {
+			ctx->base.set_framebuffer_state(&ctx->base, &ctx->batch->framebuffer);
+			break;
+		}
+	}
+
 	/* per-shader-stage resources: */
 	for (unsigned stage = 0; stage < PIPE_SHADER_TYPES; stage++) {
 		/* Constbufs.. note that constbuf[0] is normal uniforms emitted in
