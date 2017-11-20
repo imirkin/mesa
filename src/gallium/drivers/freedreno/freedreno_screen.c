@@ -269,7 +269,7 @@ fd_screen_get_param(struct pipe_screen *pscreen, enum pipe_cap param)
 		return is_ir3(screen) ? 140 : 120;
 
 	case PIPE_CAP_SHADER_BUFFER_OFFSET_ALIGNMENT:
-		if (is_a5xx(screen))
+		if (is_a4xx(screen) || is_a5xx(screen))
 			return 4;
 		return 0;
 
@@ -589,7 +589,7 @@ fd_screen_get_shader_param(struct pipe_screen *pscreen,
 		return 0;
 	case PIPE_SHADER_CAP_MAX_SHADER_BUFFERS:
 	case PIPE_SHADER_CAP_MAX_SHADER_IMAGES:
-		if (is_a5xx(screen)) {
+		if (is_a4xx(screen) || is_a5xx(screen)) {
 			/* a5xx (and a4xx for that matter) has one state-block
 			 * for compute-shader SSBO's and another that is shared
 			 * by VS/HS/DS/GS/FS..  so to simplify things for now
