@@ -1351,6 +1351,7 @@ emit_intrinsic_atomic_ssbo(struct ir3_context *ctx, nir_intrinsic_instr *intr)
 	ssbo = create_immed(b, const_offset->u32[0]);
 
 	offset = get_src(ctx, &intr->src[1])[0];
+	const_offset = nir_src_as_const_value(intr->src[1]);
 
 	/* src0 is data (or uvec2(data, compare))
 	 * src1 is offset
@@ -1359,7 +1360,10 @@ emit_intrinsic_atomic_ssbo(struct ir3_context *ctx, nir_intrinsic_instr *intr)
 	 * Note that nir already multiplies the offset by four
 	 */
 	src0 = get_src(ctx, &intr->src[2])[0];
-	src1 = ir3_SHR_B(b, offset, 0, create_immed(b, 2), 0);
+	if (const_offset)
+		src1 = create_immed(b, const_offset->u32[0] >> 2);
+	else
+		src1 = ir3_SHR_B(b, offset, 0, create_immed(b, 2), 0);
 	src2 = create_collect(b, (struct ir3_instruction*[]){
 		offset,
 		create_immed(b, 0),
