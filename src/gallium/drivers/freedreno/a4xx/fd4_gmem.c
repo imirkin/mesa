@@ -700,6 +700,7 @@ fd4_emit_tile_init(struct fd_batch *batch)
 	OUT_PKT0(ring, REG_A4XX_RB_MODE_CONTROL, 1);
 	OUT_RING(ring, A4XX_RB_MODE_CONTROL_WIDTH(gmem->bin_w) |
 			A4XX_RB_MODE_CONTROL_HEIGHT(gmem->bin_h) |
+0xc00000    |
 			A4XX_RB_MODE_CONTROL_ENABLE_GMEM);
 }
 
