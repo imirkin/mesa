@@ -820,10 +820,10 @@ fd4_emit_restore(struct fd_batch *batch, struct fd_ringbuffer *ring)
 	OUT_RING(ring, 0x00000000);
 
 	OUT_PKT0(ring, REG_A4XX_SP_MODE_CONTROL, 1);
-	OUT_RING(ring, 0x0000001e);
+	OUT_RING(ring, 0x00000006);
 
 	OUT_PKT0(ring, REG_A4XX_TPL1_TP_MODE_CONTROL, 1);
-	OUT_RING(ring, 0x00000038);
+	OUT_RING(ring, 0x0000003a);
 
 	OUT_PKT0(ring, REG_A4XX_UNKNOWN_0D01, 1);
 	OUT_RING(ring, 0x00000001);
@@ -842,7 +842,7 @@ fd4_emit_restore(struct fd_batch *batch, struct fd_ringbuffer *ring)
 	OUT_RING(ring, 0x00000012);
 
 	OUT_PKT0(ring, REG_A4XX_HLSQ_MODE_CONTROL, 1);
-	OUT_RING(ring, 0x00000001);
+	OUT_RING(ring, 0x00000000);
 
 	OUT_PKT0(ring, REG_A4XX_UNKNOWN_0CC5, 1);
 	OUT_RING(ring, 0x00000006);
@@ -906,7 +906,7 @@ fd4_emit_restore(struct fd_batch *batch, struct fd_ringbuffer *ring)
 	OUT_RING(ring, 0x00000000);
 
 	OUT_PKT0(ring, REG_A4XX_TPL1_TP_TEX_OFFSET, 1);
-	OUT_RING(ring, 0x00000808);
+	OUT_RING(ring, 0x00000000);
 
 	OUT_PKT0(ring, REG_A4XX_TPL1_TP_TEX_COUNT, 1);
 	OUT_RING(ring, A4XX_TPL1_TP_TEX_COUNT_VS(16) |

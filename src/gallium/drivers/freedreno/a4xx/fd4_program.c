@@ -263,7 +263,7 @@ fd4_program_emit(struct fd_ringbuffer *ring, struct fd4_emit *emit,
 	 */
 
 	OUT_PKT0(ring, REG_A4XX_HLSQ_UPDATE_CONTROL, 1);
-	OUT_RING(ring, 0x00000007);
+	OUT_RING(ring, 0x00000003);
 
 	OUT_PKT0(ring, REG_A4XX_HLSQ_CONTROL_0_REG, 5);
 	OUT_RING(ring, A4XX_HLSQ_CONTROL_0_REG_FSTHREADSIZE(fssz) |

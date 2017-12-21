@@ -613,7 +613,7 @@ fd_screen_get_shader_param(struct pipe_screen *pscreen,
 			{
 			case PIPE_SHADER_FRAGMENT:
 			case PIPE_SHADER_COMPUTE:
-				return 8;
+				return 24;
 			default:
 				return 0;
 			}
