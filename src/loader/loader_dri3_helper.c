@@ -74,6 +74,18 @@ static bool loader_dri3_have_image_blit(const struct loader_dri3_drawable *draw)
 }
 
 /**
+ * Clip widths for blits so as not to over-run either the source or
+ * destination surface.
+ */
+static inline void
+clip_dims(unsigned w1, unsigned h1, unsigned w2, unsigned h2,
+          unsigned *w, unsigned *h)
+{
+   *w = w1 > w2 ? w2 : w1;
+   *h = h1 > h2 ? h2 : h1;
+}
+
+/**
  * Get and lock (for use with the current thread) a dri context associated
  * with the drawable's dri screen. The context is intended to be used with
  * the dri image extension's blitImage method.
@@ -671,6 +683,16 @@ loader_dri3_copy_sub_buffer(struct loader_dri3_drawable *draw,
 
    loader_dri3_swapbuffer_barrier(draw);
    dri3_fence_reset(draw->conn, back);
+
+   if (x + width > back->width)
+      width = back->width - x;
+   if (width < 0)
+      width = 0;
+   if (y + height > back->height)
+      height = back->height - y;
+   if (height < 0)
+      height = 0;
+
    dri3_copy_area(draw->conn,
                   back->pixmap,
                   draw->drawable,
@@ -1436,13 +1458,18 @@ dri3_get_buffer(__DRIdrawable *driDrawable,
       if ((buffer_type == loader_dri3_buffer_back ||
            (buffer_type == loader_dri3_buffer_front && draw->have_fake_front))
           && buffer) {
+         unsigned w, h;
+
+         clip_dims(draw->width, draw->height,
+                   buffer->width, buffer->height,
+                   &w, &h);
 
          /* Fill the new buffer with data from an old buffer */
          dri3_fence_await(draw->conn, draw, buffer);
          if (!loader_dri3_blit_image(draw,
                                      new_buffer->image,
                                      buffer->image,
-                                     0, 0, draw->width, draw->height,
+                                     0, 0, w, h,
                                      0, 0, 0) &&
              !buffer->linear_buffer) {
             dri3_fence_reset(draw->conn, new_buffer);
@@ -1496,12 +1523,17 @@ dri3_get_buffer(__DRIdrawable *driDrawable,
        buffer != draw->buffers[draw->cur_blit_source]) {
 
       struct loader_dri3_buffer *source = draw->buffers[draw->cur_blit_source];
+      unsigned w, h;
+
+      clip_dims(source->width, source->height,
+                buffer->width, buffer->height,
+                &w, &h);
 
       /* Avoid flushing here. Will propably do good for tiling hardware. */
       (void) loader_dri3_blit_image(draw,
                                     buffer->image,
                                     source->image,
-                                    0, 0, draw->width, draw->height,
+                                    0, 0, w, h,
                                     0, 0, 0);
       buffer->last_swap = source->last_swap;
       draw->cur_blit_source = -1;
@@ -1729,13 +1761,18 @@ dri3_find_back_alloc(struct loader_dri3_drawable *draw)
        draw->buffers[draw->cur_blit_source] &&
        back != draw->buffers[draw->cur_blit_source]) {
       struct loader_dri3_buffer *source = draw->buffers[draw->cur_blit_source];
+      unsigned w, h;
+
+      clip_dims(source->width, source->height,
+                back->width, back->height,
+                &w, &h);
 
       dri3_fence_await(draw->conn, draw, source);
       dri3_fence_await(draw->conn, draw, back);
       (void) loader_dri3_blit_image(draw,
                                     back->image,
                                     source->image,
-                                    0, 0, draw->width, draw->height,
+                                    0, 0, w, h,
                                     0, 0, 0);
       back->last_swap = source->last_swap;
       draw->cur_blit_source = -1;
