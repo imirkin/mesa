@@ -513,6 +513,15 @@ st_create_context_priv(struct gl_context *ctx, struct pipe_context *pipe,
          ctx->Const.ShaderCompilerOptions[i].EmitNoIndirectSampler = true;
    }
 
+   /* The QT framework has a bug in their shader program cache, which is built
+    * on GL_ARB_get_program_binary. In an effort to allow them to fix the bug
+    * we don't enable binary formats for compatibility profiles.
+    * This is only being done on the 18.0 release branch.
+    */
+   if (ctx->API == API_OPENGL_COMPAT) {
+      ctx->Const.NumProgramBinaryFormats = 0;
+   }
+
    /* Set which shader types can be compiled at link time. */
    st->shader_has_one_variant[MESA_SHADER_VERTEX] =
          st->has_shareable_shaders &&
