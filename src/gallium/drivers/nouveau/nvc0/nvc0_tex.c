@@ -1256,17 +1256,14 @@ gm107_validate_surfaces(struct nvc0_context *nvc0,
 
       BEGIN_NVC0(push, NVC0_3D(TIC_FLUSH), 1);
       PUSH_DATA (push, 0);
-   } else
-   if (res->status & NOUVEAU_BUFFER_STATUS_GPU_WRITING) {
-      BEGIN_NVC0(push, NVC0_3D(TEX_CACHE_CTL), 1);
-      PUSH_DATA (push, (tic->id << 4) | 1);
    }
+
+   if (view->access & PIPE_IMAGE_ACCESS_WRITE)
+      res->status |= NOUVEAU_BUFFER_STATUS_GPU_WRITING;
+   if (view->access & PIPE_IMAGE_ACCESS_READ)
+      res->status |= NOUVEAU_BUFFER_STATUS_GPU_READING;
+
    nvc0->screen->tic.lock[tic->id / 32] |= 1 << (tic->id % 32);
-
-   res->status &= ~NOUVEAU_BUFFER_STATUS_GPU_WRITING;
-   res->status |= NOUVEAU_BUFFER_STATUS_GPU_READING;
-
-   BCTX_REFN(nvc0->bufctx_3d, 3D_SUF, res, RD);
 
    /* upload the texture handle */
    BEGIN_NVC0(push, NVC0_3D(CB_SIZE), 3);
