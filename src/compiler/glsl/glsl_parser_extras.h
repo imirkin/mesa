@@ -810,6 +810,8 @@ struct _mesa_glsl_parse_state {
    bool MESA_shader_integer_functions_warn;
    bool NV_image_formats_enable;
    bool NV_image_formats_warn;
+   bool NV_shader_atomic_float_enable;
+   bool NV_shader_atomic_float_warn;
    /*@}*/
 
    /** Extensions supported by the OpenGL implementation. */

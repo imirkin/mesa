@@ -720,6 +720,7 @@ static const _mesa_glsl_extension _mesa_glsl_supported_extensions[] = {
    EXT(INTEL_conservative_rasterization),
    EXT(MESA_shader_integer_functions),
    EXT(NV_image_formats),
+   EXT(NV_shader_atomic_float),
 };
 
 #undef EXT
