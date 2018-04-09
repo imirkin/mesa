@@ -284,6 +284,7 @@ intelInitExtensions(struct gl_context *ctx)
       /* requires ARB_gpu_shader_int64 */
       ctx->Extensions.ARB_shader_ballot = devinfo->has_64bit_types;
       ctx->Extensions.ARB_ES3_2_compatibility = true;
+      ctx->Extensions.NV_shader_atomic_float = true;
    }
 
    if (devinfo->gen >= 9) {
