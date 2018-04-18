@@ -2235,6 +2235,12 @@ fs_generator::generate_code(const cfg_t *cfg, int dispatch_width)
                                   inst->header_size);
          break;
 
+      case SHADER_OPCODE_UNTYPED_ATOMIC_FLOAT_ADD:
+         brw_untyped_atomic_float_add(p, dst, src[0], src[1],
+                                      inst->mlen, !inst->dst.is_null(),
+                                      inst->header_size);
+         break;
+
       case SHADER_OPCODE_UNTYPED_SURFACE_READ:
          assert(!inst->header_size);
          assert(src[2].file == BRW_IMMEDIATE_VALUE);

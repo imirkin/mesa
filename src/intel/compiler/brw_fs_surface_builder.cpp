@@ -135,6 +135,22 @@ namespace brw {
       }
 
       /**
+       */
+      fs_reg
+      emit_untyped_atomic_fadd(const fs_builder &bld,
+                               const fs_reg &surface, const fs_reg &addr,
+                               const fs_reg &src0,
+                               unsigned dims, unsigned rsize,
+                               brw_predicate pred)
+      {
+         const fs_reg tmp = bld.vgrf(src0.type, 1);
+         bld.LOAD_PAYLOAD(tmp, &src0, 1, 0);
+
+         return emit_send(bld, SHADER_OPCODE_UNTYPED_ATOMIC_FLOAT_ADD_LOGICAL,
+                          addr, tmp, surface, dims, 0, rsize, pred);
+      }
+
+      /**
        * Emit a typed surface read opcode.  \p dims determines the number of
        * components of the address and \p size the number of components of the
        * returned value.

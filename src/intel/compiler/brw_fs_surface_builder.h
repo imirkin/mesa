@@ -56,6 +56,13 @@ namespace brw {
                                 brw_predicate pred);
 
       fs_reg
+      emit_untyped_atomic_fadd(const fs_builder &bld,
+                               const fs_reg &surface, const fs_reg &addr,
+                               const fs_reg &src0,
+                               unsigned dims, unsigned rsize,
+                               brw_predicate pred);
+
+      fs_reg
       emit_typed_read(const fs_builder &bld, const fs_reg &surface,
                       const fs_reg &addr, unsigned dims, unsigned size);
 

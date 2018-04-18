@@ -459,6 +459,14 @@ brw_untyped_atomic_float(struct brw_codegen *p,
                          bool response_expected,
                          bool header_present);
 
+void
+brw_untyped_atomic_float_add(struct brw_codegen *p,
+                             struct brw_reg dst,
+                             struct brw_reg payload,
+                             struct brw_reg surface,
+                             unsigned msg_length,
+                             bool response_expected,
+                             bool header_present);
 
 void
 brw_untyped_surface_read(struct brw_codegen *p,

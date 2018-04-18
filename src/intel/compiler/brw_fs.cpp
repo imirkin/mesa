@@ -256,6 +256,7 @@ fs_inst::is_send_from_grf() const
    case FS_OPCODE_INTERPOLATE_AT_PER_SLOT_OFFSET:
    case SHADER_OPCODE_UNTYPED_ATOMIC:
    case SHADER_OPCODE_UNTYPED_ATOMIC_FLOAT:
+   case SHADER_OPCODE_UNTYPED_ATOMIC_FLOAT_ADD:
    case SHADER_OPCODE_UNTYPED_SURFACE_READ:
    case SHADER_OPCODE_UNTYPED_SURFACE_WRITE:
    case SHADER_OPCODE_BYTE_SCATTERED_WRITE:
@@ -853,6 +854,7 @@ fs_inst::size_read(int arg) const
    case SHADER_OPCODE_URB_READ_SIMD8_PER_SLOT:
    case SHADER_OPCODE_UNTYPED_ATOMIC:
    case SHADER_OPCODE_UNTYPED_ATOMIC_FLOAT:
+   case SHADER_OPCODE_UNTYPED_ATOMIC_FLOAT_ADD:
    case SHADER_OPCODE_UNTYPED_SURFACE_READ:
    case SHADER_OPCODE_UNTYPED_SURFACE_WRITE:
    case SHADER_OPCODE_TYPED_ATOMIC:
@@ -4874,6 +4876,12 @@ fs_visitor::lower_logical_sends()
                                     ibld.sample_mask_reg());
          break;
 
+      case SHADER_OPCODE_UNTYPED_ATOMIC_FLOAT_ADD_LOGICAL:
+         lower_surface_logical_send(ibld, inst,
+                                    SHADER_OPCODE_UNTYPED_ATOMIC_FLOAT_ADD,
+                                    ibld.sample_mask_reg());
+         break;
+
       case SHADER_OPCODE_TYPED_SURFACE_READ_LOGICAL:
          lower_surface_logical_send(ibld, inst,
                                     SHADER_OPCODE_TYPED_SURFACE_READ,
@@ -5353,6 +5361,7 @@ get_lowered_simd_width(const struct gen_device_info *devinfo,
 
    case SHADER_OPCODE_UNTYPED_ATOMIC_LOGICAL:
    case SHADER_OPCODE_UNTYPED_ATOMIC_FLOAT_LOGICAL:
+   case SHADER_OPCODE_UNTYPED_ATOMIC_FLOAT_ADD_LOGICAL:
    case SHADER_OPCODE_UNTYPED_SURFACE_READ_LOGICAL:
    case SHADER_OPCODE_UNTYPED_SURFACE_WRITE_LOGICAL:
    case SHADER_OPCODE_BYTE_SCATTERED_WRITE_LOGICAL:

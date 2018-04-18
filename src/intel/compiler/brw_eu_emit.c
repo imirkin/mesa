@@ -2961,6 +2961,53 @@ brw_untyped_atomic_float(struct brw_codegen *p,
 }
 
 static void
+brw_set_dp_untyped_atomic_float_add_message(struct brw_codegen *p,
+                                            brw_inst *insn,
+                                            bool response_expected)
+{
+   const struct gen_device_info *devinfo = p->devinfo;
+
+   /* Bit 3 deteremines whether the data is float (0) or double (1). */
+   unsigned msg_control =
+      (response_expected ? 1 << 5 : 0); /* Return data expected */
+
+   assert(devinfo->gen >= 8);
+   assert(brw_inst_access_mode(devinfo, p->current) == BRW_ALIGN_1);
+
+   if (brw_inst_exec_size(devinfo, p->current) != BRW_EXECUTE_16)
+      msg_control |= 1 << 4; /* SIMD8 mode */
+
+   brw_inst_set_dp_msg_type(devinfo, insn,
+                            GEN8_DATAPORT_DC_PORT1_UNTYPED_ATOMIC_FLOAT_ADD);
+
+   brw_inst_set_dp_msg_control(devinfo, insn, msg_control);
+}
+
+void
+brw_untyped_atomic_float_add(struct brw_codegen *p,
+                             struct brw_reg dst,
+                             struct brw_reg payload,
+                             struct brw_reg surface,
+                             unsigned msg_length,
+                             bool response_expected,
+                             bool header_present)
+{
+   const struct gen_device_info *devinfo = p->devinfo;
+
+   assert(devinfo->gen >= 8);
+
+   const unsigned sfid = HSW_SFID_DATAPORT_DATA_CACHE_1;
+
+   struct brw_inst *insn = brw_send_indirect_surface_message(
+      p, sfid, brw_writemask(dst, WRITEMASK_XYZW), payload, surface, msg_length,
+      brw_surface_payload_size(p, response_expected, true, true),
+      header_present);
+
+   brw_set_dp_untyped_atomic_float_add_message(
+      p, insn, response_expected);
+}
+
+static void
 brw_set_dp_untyped_surface_read_message(struct brw_codegen *p,
                                         struct brw_inst *insn,
                                         unsigned num_channels)
