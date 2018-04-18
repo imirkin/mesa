@@ -734,6 +734,8 @@ nir_visitor::visit(ir_call *ir)
             op = nir_intrinsic_ssbo_atomic_imin;
          else if (ir->return_deref->type == glsl_type::uint_type)
             op = nir_intrinsic_ssbo_atomic_umin;
+         else if (ir->return_deref->type == glsl_type::float_type)
+            op = nir_intrinsic_ssbo_atomic_fmin;
          else
             unreachable("Invalid type");
          break;
@@ -743,6 +745,8 @@ nir_visitor::visit(ir_call *ir)
             op = nir_intrinsic_ssbo_atomic_imax;
          else if (ir->return_deref->type == glsl_type::uint_type)
             op = nir_intrinsic_ssbo_atomic_umax;
+         else if (ir->return_deref->type == glsl_type::float_type)
+            op = nir_intrinsic_ssbo_atomic_fmax;
          else
             unreachable("Invalid type");
          break;
@@ -750,7 +754,9 @@ nir_visitor::visit(ir_call *ir)
          op = nir_intrinsic_ssbo_atomic_exchange;
          break;
       case ir_intrinsic_ssbo_atomic_comp_swap:
-         op = nir_intrinsic_ssbo_atomic_comp_swap;
+         op = ir->return_deref->type->is_integer_32_64()
+            ? nir_intrinsic_ssbo_atomic_comp_swap
+            : nir_intrinsic_ssbo_atomic_fcomp_swap;
          break;
       case ir_intrinsic_shader_clock:
          op = nir_intrinsic_shader_clock;
@@ -796,6 +802,8 @@ nir_visitor::visit(ir_call *ir)
             op = nir_intrinsic_shared_atomic_imin;
          else if (ir->return_deref->type == glsl_type::uint_type)
             op = nir_intrinsic_shared_atomic_umin;
+         else if (ir->return_deref->type == glsl_type::float_type)
+            op = nir_intrinsic_shared_atomic_fmin;
          else
             unreachable("Invalid type");
          break;
@@ -805,6 +813,8 @@ nir_visitor::visit(ir_call *ir)
             op = nir_intrinsic_shared_atomic_imax;
          else if (ir->return_deref->type == glsl_type::uint_type)
             op = nir_intrinsic_shared_atomic_umax;
+         else if (ir->return_deref->type == glsl_type::float_type)
+            op = nir_intrinsic_shared_atomic_fmax;
          else
             unreachable("Invalid type");
          break;
@@ -812,7 +822,9 @@ nir_visitor::visit(ir_call *ir)
          op = nir_intrinsic_shared_atomic_exchange;
          break;
       case ir_intrinsic_shared_atomic_comp_swap:
-         op = nir_intrinsic_shared_atomic_comp_swap;
+         op = ir->return_deref->type->is_integer_32_64()
+            ? nir_intrinsic_shared_atomic_comp_swap
+            : nir_intrinsic_shared_atomic_fcomp_swap;
          break;
       case ir_intrinsic_vote_any:
          op = nir_intrinsic_vote_any;
@@ -1055,7 +1067,10 @@ nir_visitor::visit(ir_call *ir)
       case nir_intrinsic_ssbo_atomic_xor:
       case nir_intrinsic_ssbo_atomic_exchange:
       case nir_intrinsic_ssbo_atomic_comp_swap:
-      case nir_intrinsic_ssbo_atomic_fadd: {
+      case nir_intrinsic_ssbo_atomic_fadd:
+      case nir_intrinsic_ssbo_atomic_fmin:
+      case nir_intrinsic_ssbo_atomic_fmax:
+      case nir_intrinsic_ssbo_atomic_fcomp_swap: {
          int param_count = ir->actual_parameters.length();
          assert(param_count == 3 || param_count == 4);
 
@@ -1076,7 +1091,8 @@ nir_visitor::visit(ir_call *ir)
 
          /* data2 parameter (only with atomic_comp_swap) */
          if (param_count == 4) {
-            assert(op == nir_intrinsic_ssbo_atomic_comp_swap);
+            assert(op == nir_intrinsic_ssbo_atomic_comp_swap ||
+                   op == nir_intrinsic_ssbo_atomic_fcomp_swap);
             param = param->get_next();
             inst = (ir_instruction *) param;
             instr->src[3] = nir_src_for_ssa(evaluate_rvalue(inst->as_rvalue()));
@@ -1139,7 +1155,10 @@ nir_visitor::visit(ir_call *ir)
       case nir_intrinsic_shared_atomic_xor:
       case nir_intrinsic_shared_atomic_exchange:
       case nir_intrinsic_shared_atomic_comp_swap:
-      case nir_intrinsic_shared_atomic_fadd: {
+      case nir_intrinsic_shared_atomic_fadd:
+      case nir_intrinsic_shared_atomic_fmin:
+      case nir_intrinsic_shared_atomic_fmax:
+      case nir_intrinsic_shared_atomic_fcomp_swap:  {
          int param_count = ir->actual_parameters.length();
          assert(param_count == 2 || param_count == 3);
 
@@ -1155,7 +1174,8 @@ nir_visitor::visit(ir_call *ir)
 
          /* data2 parameter (only with atomic_comp_swap) */
          if (param_count == 3) {
-            assert(op == nir_intrinsic_shared_atomic_comp_swap);
+            assert(op == nir_intrinsic_shared_atomic_comp_swap ||
+                   op == nir_intrinsic_shared_atomic_fcomp_swap);
             param = param->get_next();
             inst = (ir_instruction *) param;
             instr->src[2] =
