@@ -388,6 +388,8 @@ enum opcode {
     */
    SHADER_OPCODE_UNTYPED_ATOMIC,
    SHADER_OPCODE_UNTYPED_ATOMIC_LOGICAL,
+   SHADER_OPCODE_UNTYPED_ATOMIC_FLOAT,
+   SHADER_OPCODE_UNTYPED_ATOMIC_FLOAT_LOGICAL,
    SHADER_OPCODE_UNTYPED_SURFACE_READ,
    SHADER_OPCODE_UNTYPED_SURFACE_READ_LOGICAL,
    SHADER_OPCODE_UNTYPED_SURFACE_WRITE,
@@ -1152,6 +1154,7 @@ enum brw_message_target {
 #define HSW_DATAPORT_DC_PORT1_ATOMIC_COUNTER_OP                     11
 #define HSW_DATAPORT_DC_PORT1_ATOMIC_COUNTER_OP_SIMD4X2             12
 #define HSW_DATAPORT_DC_PORT1_TYPED_SURFACE_WRITE                   13
+#define GEN9_DATAPORT_DC_PORT1_UNTYPED_ATOMIC_FLOAT_OP              0x1b
 
 /* GEN9 */
 #define GEN9_DATAPORT_RC_RENDER_TARGET_WRITE                        12
@@ -1170,7 +1173,9 @@ enum brw_message_target {
 #define GEN8_BTI_STATELESS_IA_COHERENT   255
 #define GEN8_BTI_STATELESS_NON_COHERENT  253
 
-/* dataport atomic operations. */
+/* Dataport atomic operations for Untyped Atomic Integer Operation message
+ * (and others).
+ */
 #define BRW_AOP_AND                   1
 #define BRW_AOP_OR                    2
 #define BRW_AOP_XOR                   3
@@ -1186,6 +1191,11 @@ enum brw_message_target {
 #define BRW_AOP_UMIN                  13
 #define BRW_AOP_CMPWR                 14
 #define BRW_AOP_PREDEC                15
+
+/* Dataport atomic operations for Untyped Atomic Float Operation message. */
+#define BRW_AOP_FMAX                  1
+#define BRW_AOP_FMIN                  2
+#define BRW_AOP_FCMPWR                3
 
 #define BRW_MATH_FUNCTION_INV                              1
 #define BRW_MATH_FUNCTION_LOG                              2
