@@ -1,0 +1,140 @@
+Name
+
+    INTEL_shader_atomic_float_minmax
+
+Name Strings
+
+    GL_INTEL_shader_atomic_float_minmax
+    GL_INTEL_shader_atomic_float64_minmax
+
+Contact
+
+    Ian Romanick (ian . d . romanick 'at' intel . com)
+
+Contributors
+
+
+Status
+
+    In progress
+
+Version
+
+    Last Modified Date: 04/19/2018
+    Revision: 1
+
+Number
+
+    TBD
+
+Dependencies
+
+    OpenGL 4.2, OpenGL ES 3.1, ARB_shader_storage_buffer_object, or
+    ARB_compute_shader is required.
+
+    This extension is written against version 4.60 of the OpenGL Shading
+    Language Specification.
+
+Overview
+
+    This extension provides GLSL built-in functions allowing shaders to
+    perform atomic read-modify-write operations to buffer variables and shared
+    variables.  Minimum, maximum, exchange, and compare-and-swap are enabled.
+
+    Support for manipulating single- and double-precision variables are
+    enabled by two separate extensions.
+
+New Procedures and Functions
+
+    None.
+
+New Tokens
+
+    None.
+
+IP Status
+
+    None.
+
+Modifications to the OpenGL Shading Language Specification, Version 4.60
+
+    Including the following line in a shader can be used to control the
+    language features described in this extension:
+
+      #extension GL_INTEL_shader_atomic_float_minmax : <behavior>
+      #extension GL_INTEL_shader_atomic_float64_minmax : <behavior>
+
+    where <behavior> is as specified in section 3.3.
+
+    New preprocessor #defines are added to the OpenGL Shading Language:
+
+      #define GL_INTEL_shader_atomic_float_minmax   1
+      #define GL_INTEL_shader_atomic_float64_minmax 1
+
+Additions to Chapter 8 of the OpenGL Shading Language Specification
+(Built-in Functions)
+
+    Modify Section 8.11, "Atomic Memory Functions"
+
+    (add to "atomicMin" table cell, p. 179)
+
+        float atomicMin(inout float mem, float data)
+        double atomicMin(inout double mem, double data)
+
+    (add to "atomicMax" table cell, p. 179)
+
+        float atomicMax(inout float mem, float data)
+        double atomicMax(inout double mem, double data)
+
+    (add to "atomicExchange" table cell, p. 180)
+
+        float atomicExchange(inout float mem, float data)
+        double atomicExchange(inout double mem, double data)
+
+    (add to "atomicCompSwap" table cell, p. 180)
+
+        float atomicCompSwap(inout float mem, float compare, float data)
+        double atomicCompSwap(inout double mem, float copare, double data)
+
+Interactions with OpenGL 4.6 and ARB_gl_spirv
+
+    If OpenGL 4.6 or ARB_gl_spirv is supported, then
+    SPV_INTEL_shader_atomic_float_minmax must also be supported.
+
+Issues
+
+    1) Why call this extension INTEL_shader_atomic_float_minmax?
+
+    RESOLVED: Several other extensions already set the precedent of
+    VENDOR_shader_atomic_float and VENDOR_shader_atomic_float64 for extensions
+    that enable floating-point atomic operations.  Using that as a base for
+    the name seems logical.
+
+    There already exists NV_shader_atomic_float, but the two extensions have
+    nearly zero overlap in functionality.  NV_shader_atomic_float adds
+    atomicAdd and image atomic operations that currently shipping Intel GPUs
+    do not support.  Calling this extension INTEL_shader_atomic_float would
+    likely have been confusing.
+
+    Adding something to describe the actual functions added by this extension
+    seemed reasonable.  INTEL_shader_atomic_float_compare was considered, but
+    that name was deemed to be not properly descriptive.  Calling this
+    extension INTEL_shader_atomic_float_min_max_exchange_compswap is right
+    out.
+
+    2) What atomic operations should we support for floating-point targets?
+
+    UNRESOLVED.  Exchange, min, max, and compare-swap make sense, and these
+    are all supported by the hardware.  For buffer variables and shared
+    variables it is not possible to bit-cast the memory location in GLSL, so
+    existing integer operations, such as atomicOr, cannot be used.  However,
+    the underlying hardware implementation can do this by treating the memory
+    as an integer.  It would be possible to implement atomicNegate using this
+    technique with atomicXor.  It is unclear whether this provides any actual
+    utility.
+
+Revision History
+
+    Rev  Date        Author    Changes
+    ---  ----------  --------  ---------------------------------------------
+      1  04/19/2018  idr       Initial version
