@@ -1348,6 +1348,53 @@ NVC0LoweringPass::handleBUFQ(Instruction *bufq)
 }
 
 void
+NVC0LoweringPass::handleSharedATOMGM107(Instruction *atom)
+{
+   if (atom->dType != TYPE_F32)
+      return;
+
+   assert(atom->subOp == NV50_IR_SUBOP_ATOM_ADD);
+   assert(atom->src(0).getFile() == FILE_MEMORY_SHARED);
+
+   BasicBlock *currBB = atom->bb;
+   BasicBlock *addAndCasBB = atom->bb->splitBefore(atom, false);
+   BasicBlock *joinBB = atom->bb->splitAfter(atom);
+
+   bld.setPosition(currBB, true);
+
+   Value *load = bld.getSSA(), *newval = bld.getSSA();
+   // TODO: Use "U" subop?
+   bld.mkLoad(TYPE_U32, load, atom->getSrc(0)->asSym(), atom->getIndirect(0, 0));
+   assert(!currBB->joinAt);
+   currBB->joinAt = bld.mkFlow(OP_JOINAT, joinBB, CC_ALWAYS, NULL);
+
+   bld.mkFlow(OP_BRA, addAndCasBB, CC_ALWAYS, NULL);
+   currBB->cfg.attach(&addAndCasBB->cfg, Graph::Edge::TREE);
+
+   bld.setPosition(addAndCasBB, true);
+   bld.remove(atom);
+
+   bld.mkOp2(OP_ADD, TYPE_F32, newval, load, atom->getSrc(1));
+
+   // Try to do a compare-and-swap. If the old value doesn't match the loaded
+   // value, repeat.
+   Value *old = bld.getSSA();
+   Instruction *cas =
+      bld.mkOp3(OP_ATOM, TYPE_U32, old, atom->getSrc(0), load, newval);
+   cas->setIndirect(0, 0, atom->getIndirect(0, 0));
+   cas->subOp = NV50_IR_SUBOP_ATOM_CAS;
+   Value *pred = bld.getSSA(1, FILE_PREDICATE);
+   bld.mkCmp(OP_SET, CC_EQ, TYPE_U32, pred, TYPE_U32, old, load);
+   bld.mkMov(load, old);
+   bld.mkFlow(OP_BRA, addAndCasBB, CC_NOT_P, pred);
+   bld.mkFlow(OP_BRA, joinBB, CC_ALWAYS, NULL);
+   addAndCasBB->cfg.attach(&addAndCasBB->cfg, Graph::Edge::BACK);
+
+   bld.setPosition(joinBB, false);
+   bld.mkFlow(OP_JOIN, NULL, CC_ALWAYS, NULL)->fixed = 1;
+}
+
+void
 NVC0LoweringPass::handleSharedATOMNVE4(Instruction *atom)
 {
    assert(atom->src(0).getFile() == FILE_MEMORY_SHARED);
@@ -1559,6 +1606,8 @@ NVC0LoweringPass::handleATOM(Instruction *atom)
          handleSharedATOM(atom);
       else if (targ->getChipset() < NVISA_GM107_CHIPSET)
          handleSharedATOMNVE4(atom);
+      else
+         handleSharedATOMGM107(atom);
       return true;
    default:
       assert(atom->src(0).getFile() == FILE_MEMORY_BUFFER);

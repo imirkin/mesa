@@ -114,6 +114,7 @@ protected:
    void handleSurfaceOpNVC0(TexInstruction *);
    void handleSharedATOM(Instruction *);
    void handleSharedATOMNVE4(Instruction *);
+   void handleSharedATOMGM107(Instruction *);
    void handleLDST(Instruction *);
    bool handleBUFQ(Instruction *);
 

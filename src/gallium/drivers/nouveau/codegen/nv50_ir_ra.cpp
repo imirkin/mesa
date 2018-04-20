@@ -473,7 +473,13 @@ RegAlloc::PhiMovesPass::visit(BasicBlock *bb)
          mov->setDef(0, tmp);
          phi->setSrc(j, tmp);
 
-         pb->insertBefore(pb->getExit(), mov);
+         // HACK: This should not be necessary. If critical edges got split
+         // properly, this won't come up. Given that it does come up, we risk
+         // having conflicting moves.
+         Instruction *i;
+         for (i = pb->getExit(); i->prev && i->prev->asFlow(); i = i->prev) {
+         }
+         pb->insertBefore(i, mov);
       }
       ++j;
    }
