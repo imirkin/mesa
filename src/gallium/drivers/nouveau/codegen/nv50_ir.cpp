@@ -23,6 +23,10 @@
 #include "codegen/nv50_ir.h"
 #include "codegen/nv50_ir_target.h"
 #include "codegen/nv50_ir_driver.h"
+#ifdef DEBUG
+#include "tgsi/tgsi_dump.h"
+#include "util/mesa-sha1.h"
+#endif
 
 extern "C" {
 #include "nouveau_debug.h"
@@ -1171,6 +1175,121 @@ void Program::releaseValue(Value *value)
       mem_Symbol.release(value);
 }
 
+#ifdef DEBUG
+static char*
+createDumpFilename(const char *dir, nv50_ir::Program *prog, const char *ext)
+{
+   char* fname = (char*)malloc(strlen(dir)+13+strlen(ext));
+   if (dir[0] && dir[strlen(dir)-1]=='/')
+      strcpy(fname, dir);
+   else
+      sprintf(fname, "%s/", dir);
+
+   unsigned char sha1_bin[20];
+   char sha1_str[41];
+   if (prog->driver->bin.sourceRep == PIPE_SHADER_IR_TGSI) {
+      const tgsi_header* header = (const tgsi_header*)prog->driver->bin.source;
+      unsigned size = (header->HeaderSize + header->BodySize) * sizeof(tgsi_token);
+      _mesa_sha1_compute(prog->driver->bin.source, size, sha1_bin);
+   } else {
+      _mesa_sha1_compute(prog->code, prog->binSize, sha1_bin);
+   }
+   _mesa_sha1_format(sha1_str, sha1_bin);
+   sha1_str[7] = 0;
+   strcat(fname, sha1_str);
+
+   switch (prog->getType()) {
+   case nv50_ir::Program::TYPE_VERTEX:
+      strcat(fname, ".vs");
+      break;
+   case nv50_ir::Program::TYPE_TESSELLATION_CONTROL:
+      strcat(fname, ".tcs");
+      break;
+   case nv50_ir::Program::TYPE_TESSELLATION_EVAL:
+      strcat(fname, ".tes");
+      break;
+   case nv50_ir::Program::TYPE_GEOMETRY:
+      strcat(fname, ".gs");
+      break;
+   case nv50_ir::Program::TYPE_FRAGMENT:
+      strcat(fname, ".fs");
+      break;
+   case nv50_ir::Program::TYPE_COMPUTE:
+      strcat(fname, ".cs");
+      break;
+   }
+
+   strcat(fname, ext);
+
+   return fname;
+}
+
+static void
+dumpProgram(nv50_ir::Program *prog)
+{
+   const char *dump_dir = debug_get_option("NV50_PROG_DUMP", NULL);
+   if (!dump_dir)
+      return;
+
+   char* fname = createDumpFilename(dump_dir, prog, ".bin");
+
+   FILE *fp = fopen(fname, "wb");
+   if (!fp) {
+      INFO("Failed to dump code of program %p to %s\n", prog, fname);
+      return;
+   }
+
+   fwrite(prog->code, prog->binSize, 1, fp);
+   fclose(fp);
+
+   INFO("Dumped code of program %p to %s\n", prog, fname);
+
+   free(fname);
+
+   if (prog->driver->bin.sourceRep == PIPE_SHADER_IR_TGSI) {
+      char* fname = createDumpFilename(dump_dir, prog, ".tgsi.txt");
+      const tgsi_token *tokens = (const tgsi_token *)prog->driver->bin.source;
+
+      FILE *fp = fopen(fname, "w");
+      tgsi_dump_to_file(tokens, 0, fp);
+      fclose(fp);
+
+      INFO("Dumped tgsi of program %p to %s\n", prog, fname);
+
+      free(fname);
+   }
+}
+
+static void
+replaceProgram(nv50_ir::Program *prog)
+{
+   const nv50_ir::Target* targ = prog->getTarget();
+
+   const char *replace_dir = debug_get_option("NV50_PROG_REPLACE", NULL);
+   if (!replace_dir)
+      return;
+
+   char* fname = createDumpFilename(replace_dir, prog, ".bin");
+
+   FILE *fp = fopen(fname, "rb");
+   if (!fp)
+      return;
+
+   FREE(prog->code);
+   prog->code = (uint32_t*)MALLOC(65536);
+   prog->binSize = fread(prog->code, 1, 65536, fp);
+
+   unsigned maxGPR = targ->getChipset() >= NVISA_GK20A_CHIPSET ? 254 : 62;
+   prog->maxGPR = MIN2(targ->getFileSize(nv50_ir::FILE_GPR), maxGPR);
+
+   fclose(fp);
+
+   INFO("Replaced code of program %p with that from %s\n", prog, fname);
+
+   free(fname);
+}
+#endif
+
 
 } // namespace nv50_ir
 
@@ -1279,6 +1398,11 @@ nv50_ir_generate_code(struct nv50_ir_prog_info *info)
       ret = -5;
       goto out;
    }
+
+#ifdef DEBUG
+   nv50_ir::dumpProgram(prog);
+   nv50_ir::replaceProgram(prog);
+#endif
 
 out:
    INFO_DBG(prog->dbgFlags, VERBOSE, "nv50_ir_generate_code: ret = %i\n", ret);
