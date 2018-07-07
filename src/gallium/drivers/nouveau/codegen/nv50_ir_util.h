@@ -64,6 +64,8 @@
    NV50_IR_FUNC_ALLOC_OBJ_DEF(TexInstruction, f, args)
 #define new_FlowInstruction(f, args...)                  \
    NV50_IR_FUNC_ALLOC_OBJ_DEF(FlowInstruction, f, args)
+#define new_PhiInstruction(f, args...)                   \
+   NV50_IR_FUNC_ALLOC_OBJ_DEF(PhiInstruction, f, args)
 
 #define new_LValue(f, args...)                  \
    NV50_IR_FUNC_ALLOC_OBJ_DEF(LValue, f, args)

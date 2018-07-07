@@ -516,6 +516,7 @@ class Instruction;
 class CmpInstruction;
 class TexInstruction;
 class FlowInstruction;
+class PhiInstruction;
 
 class Value;
 class LValue;
@@ -880,9 +881,11 @@ public:
    inline CmpInstruction *asCmp();
    inline TexInstruction *asTex();
    inline FlowInstruction *asFlow();
+   inline PhiInstruction *asPhi();
    inline const TexInstruction *asTex() const;
    inline const CmpInstruction *asCmp() const;
    inline const FlowInstruction *asFlow() const;
+   inline const PhiInstruction *asPhi() const;
 
 public:
    Instruction *next;
@@ -1104,6 +1107,21 @@ public:
    } target;
 };
 
+class PhiInstruction : public Instruction
+{
+public:
+   PhiInstruction(Function *, DataType);
+
+   virtual PhiInstruction *clone(ClonePolicy<Function>&,
+                                 Instruction * = NULL) const;
+
+   void setSrcBB(int s, Value *, BasicBlock *);
+   void setSrcBB(int s, const ValueRef&, BasicBlock *);
+
+public:
+   std::deque<BasicBlock *> basicBlocks;
+};
+
 class BasicBlock
 {
 public:
@@ -1317,6 +1335,7 @@ public:
    MemoryPool mem_CmpInstruction;
    MemoryPool mem_TexInstruction;
    MemoryPool mem_FlowInstruction;
+   MemoryPool mem_PhiInstruction;
    MemoryPool mem_LValue;
    MemoryPool mem_Symbol;
    MemoryPool mem_ImmediateValue;

@@ -323,6 +323,20 @@ const TexInstruction *Instruction::asTex() const
    return NULL;
 }
 
+PhiInstruction *Instruction::asPhi()
+{
+   if (op == OP_PHI)
+      return static_cast<PhiInstruction *>(this);
+   return NULL;
+}
+
+const PhiInstruction *Instruction::asPhi() const
+{
+   if (op == OP_PHI)
+      return static_cast<const PhiInstruction *>(this);
+   return NULL;
+}
+
 static inline Instruction *cloneForward(Function *ctx, Instruction *obj)
 {
    DeepClonePolicy<Function> pol(ctx);

@@ -374,42 +374,19 @@ typedef unordered_map<
    std::pair<Instruction *, BasicBlock *>, Value *, PhiMapHash> PhiMap;
 
 // Critical edges need to be split up so that work can be inserted along
-// specific edge transitions. Unfortunately manipulating incident edges into a
-// BB invalidates all the PHI nodes since their sources are implicitly ordered
-// by incident edge order.
-//
-// TODO: Make it so that that is not the case, and PHI nodes store pointers to
-// the original BBs.
+// specific edge transitions.
 void
 RegAlloc::PhiMovesPass::splitEdges(BasicBlock *bb)
 {
    BasicBlock *pb, *pn;
-   Instruction *phi;
    Graph::EdgeIterator ei;
    std::stack<BasicBlock *> stack;
-   int j = 0;
 
    for (ei = bb->cfg.incident(); !ei.end(); ei.next()) {
       pb = BasicBlock::get(ei.getNode());
       assert(pb);
       if (needNewElseBlock(bb, pb))
          stack.push(pb);
-   }
-
-   // No critical edges were found, no need to perform any work.
-   if (stack.empty())
-      return;
-
-   // We're about to, potentially, reorder the inbound edges. This means that
-   // we need to hold on to the (phi, bb) -> src mapping, and fix up the phi
-   // nodes after the graph has been modified.
-   PhiMap phis;
-
-   j = 0;
-   for (ei = bb->cfg.incident(); !ei.end(); ei.next(), j++) {
-      pb = BasicBlock::get(ei.getNode());
-      for (phi = bb->getPhi(); phi && phi->op == OP_PHI; phi = phi->next)
-         phis.insert(std::make_pair(std::make_pair(phi, pb), phi->getSrc(j)));
    }
 
    while (!stack.empty()) {
@@ -425,23 +402,12 @@ RegAlloc::PhiMovesPass::splitEdges(BasicBlock *bb)
       if (pb->getExit()->asFlow()->target.bb == bb)
          pb->getExit()->asFlow()->target.bb = pn;
 
-      for (phi = bb->getPhi(); phi && phi->op == OP_PHI; phi = phi->next) {
-         PhiMap::iterator it = phis.find(std::make_pair(phi, pb));
-         assert(it != phis.end());
-         phis.insert(std::make_pair(std::make_pair(phi, pn), it->second));
-         phis.erase(it);
-      }
-   }
-
-   // Now go through and fix up all of the phi node sources.
-   j = 0;
-   for (ei = bb->cfg.incident(); !ei.end(); ei.next(), j++) {
-      pb = BasicBlock::get(ei.getNode());
-      for (phi = bb->getPhi(); phi && phi->op == OP_PHI; phi = phi->next) {
-         PhiMap::const_iterator it = phis.find(std::make_pair(phi, pb));
-         assert(it != phis.end());
-
-         phi->setSrc(j, it->second);
+      PhiInstruction *phi = bb->getPhi() ? bb->getPhi()->asPhi() : NULL;
+      for (; phi; phi = phi->next->asPhi()) {
+         for (int s = 0; phi->srcExists(s); s++) {
+            if (phi->basicBlocks[s] == pb)
+               phi->basicBlocks[s] = pn;
+         }
       }
    }
 }
@@ -457,28 +423,29 @@ RegAlloc::PhiMovesPass::splitEdges(BasicBlock *bb)
 bool
 RegAlloc::PhiMovesPass::visit(BasicBlock *bb)
 {
-   Instruction *phi, *mov;
-
    splitEdges(bb);
 
-   // insert MOVs (phi->src(j) should stem from j-th in-BB)
-   int j = 0;
+   // ensure incoming basic blocks are terminated
    for (Graph::EdgeIterator ei = bb->cfg.incident(); !ei.end(); ei.next()) {
       BasicBlock *pb = BasicBlock::get(ei.getNode());
       if (!pb->isTerminated())
          pb->insertTail(new_FlowInstruction(func, OP_BRA, bb));
+   }
 
-      for (phi = bb->getPhi(); phi && phi->op == OP_PHI; phi = phi->next) {
+   // insert MOVs
+   PhiInstruction *phi = bb->getPhi() ? bb->getPhi()->asPhi() : NULL;
+   for (; phi; phi = phi->next->asPhi()) {
+      for (int i = 0; phi->srcExists(i); i++) {
+         BasicBlock *pb = phi->basicBlocks[i];
+
          LValue *tmp = new_LValue(func, phi->getDef(0)->asLValue());
-         mov = new_Instruction(func, OP_MOV, typeOfSize(tmp->reg.size));
-
-         mov->setSrc(0, phi->getSrc(j));
+         Instruction *mov = new_Instruction(func, OP_MOV, typeOfSize(tmp->reg.size));
+         mov->setSrc(0, phi->getSrc(i));
          mov->setDef(0, tmp);
-         phi->setSrc(j, tmp);
-
          pb->insertBefore(pb->getExit(), mov);
+
+         phi->setSrc(i, tmp);
       }
-      ++j;
    }
 
    return true;

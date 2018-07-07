@@ -1108,6 +1108,43 @@ FlowInstruction::clone(ClonePolicy<Function>& pol, Instruction *i) const
    return flow;
 }
 
+PhiInstruction::PhiInstruction(Function *fn, DataType ty)
+   : Instruction(fn, OP_PHI, ty) {}
+
+PhiInstruction *
+PhiInstruction::clone(ClonePolicy<Function>& pol, Instruction *i) const
+{
+   assert(op == OP_PHI);
+
+   PhiInstruction *phi = (i ? static_cast<PhiInstruction *>(i) :
+                          new_PhiInstruction(pol.context(), dType));
+
+   Instruction::clone(pol, phi);
+   phi->basicBlocks.resize(basicBlocks.size());
+   for (size_t i = 0; i < basicBlocks.size(); i++)
+      phi->basicBlocks[i] = basicBlocks[i];
+
+   return phi;
+}
+
+void
+PhiInstruction::setSrcBB(int s, Value *val, BasicBlock *bb)
+{
+   this->setSrc(s, val);
+   if (s >= (int)basicBlocks.size())
+      basicBlocks.resize(s + 1);
+   basicBlocks[s] = bb;
+}
+
+void
+PhiInstruction::setSrcBB(int s, const ValueRef& ref, BasicBlock *bb)
+{
+   this->setSrc(s, ref);
+   if (s >= (int)basicBlocks.size())
+      basicBlocks.resize(s + 1);
+   basicBlocks[s] = bb;
+}
+
 Program::Program(Type type, Target *arch)
    : progType(type),
      target(arch),
@@ -1115,6 +1152,7 @@ Program::Program(Type type, Target *arch)
      mem_CmpInstruction(sizeof(CmpInstruction), 4),
      mem_TexInstruction(sizeof(TexInstruction), 4),
      mem_FlowInstruction(sizeof(FlowInstruction), 4),
+     mem_PhiInstruction(sizeof(PhiInstruction), 4),
      mem_LValue(sizeof(LValue), 8),
      mem_Symbol(sizeof(Symbol), 7),
      mem_ImmediateValue(sizeof(ImmediateValue), 7)
@@ -1157,6 +1195,9 @@ void Program::releaseInstruction(Instruction *insn)
    else
    if (insn->asFlow())
       mem_FlowInstruction.release(insn);
+   else
+   if (insn->asPhi())
+      mem_PhiInstruction.release(insn);
    else
       mem_Instruction.release(insn);
 }

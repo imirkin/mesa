@@ -727,6 +727,8 @@ void Instruction::print() const
                                           getIndirect(s, 1));
       else
          pos += getSrc(s)->print(&buf[pos], BUFSZ - pos, sType);
+      if (op == OP_PHI)
+         PRINT("%s(BB:%i)", colour[TXT_INSN], asPhi()->basicBlocks[s]->getId());
    }
    if (exit)
       PRINT("%s exit", colour[TXT_INSN]);

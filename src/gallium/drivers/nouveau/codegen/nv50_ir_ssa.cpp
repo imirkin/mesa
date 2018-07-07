@@ -371,7 +371,7 @@ Function::convertToSSA()
 
          DLList::Iterator dfIter = bb->getDF().iterator();
          for (; !dfIter.end(); dfIter.next()) {
-            Instruction *phi;
+            PhiInstruction *phi;
             BasicBlock *dfBB = BasicBlock::get(dfIter);
 
             if (hasAlready[dfBB->getId()] >= iterCount)
@@ -382,12 +382,12 @@ Function::convertToSSA()
             if (!dfBB->liveSet.test(lval->id))
                continue;
 
-            phi = new_Instruction(this, OP_PHI, typeOfSize(lval->reg.size));
+            phi = new_PhiInstruction(this, typeOfSize(lval->reg.size));
             dfBB->insertTail(phi);
 
             phi->setDef(0, lval);
-            for (int s = 0; s < dfBB->cfg.incidentCount(); ++s)
-               phi->setSrc(s, lval);
+            for (Graph::EdgeIterator ei = dfBB->cfg.incident(); !ei.end(); ei.next())
+               phi->setSrcBB(phi->srcCount(), lval, BasicBlock::get(ei.getNode()));
 
             if (work[dfBB->getId()] < iterCount) {
                work[dfBB->getId()] = iterCount;
@@ -514,6 +514,9 @@ void RenamePass::search(BasicBlock *bb)
       assert(p < sb->cfg.incidentCount());
 
       for (phi = sb->getPhi(); phi && phi->op == OP_PHI; phi = phi->next) {
+         // phi instructions are supposed to handle when this isn't true, but
+         // it's always true during conversion to SSA.
+         assert(phi->asPhi()->basicBlocks[p] == bb);
          lval = getStackTop(phi->getSrc(p));
          if (!lval)
             lval = mkUndefined(phi->getSrc(p));
