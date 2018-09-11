@@ -315,19 +315,14 @@ nv50_rasterizer_state_create(struct pipe_context *pipe,
       SB_DATA    (so, fui(cso->offset_clamp));
    }
 
-   if (cso->depth_clip_near) {
-      reg = 0;
-   } else {
-      reg =
-         NV50_3D_VIEW_VOLUME_CLIP_CTRL_DEPTH_CLAMP_NEAR |
-         NV50_3D_VIEW_VOLUME_CLIP_CTRL_DEPTH_CLAMP_FAR |
+   reg = 0;
+   if (!cso->depth_clip_near)
+      reg |= NV50_3D_VIEW_VOLUME_CLIP_CTRL_DEPTH_CLAMP_NEAR |
          NV50_3D_VIEW_VOLUME_CLIP_CTRL_UNK12_UNK1;
-   }
-#ifndef NV50_SCISSORS_CLIPPING
-   reg |=
-      NV50_3D_VIEW_VOLUME_CLIP_CTRL_UNK7 |
-      NV50_3D_VIEW_VOLUME_CLIP_CTRL_UNK12_UNK1;
-#endif
+   if (!cso->depth_clip_far)
+      reg |= NV50_3D_VIEW_VOLUME_CLIP_CTRL_DEPTH_CLAMP_FAR |
+         NV50_3D_VIEW_VOLUME_CLIP_CTRL_UNK12_UNK1;
+
    SB_BEGIN_3D(so, VIEW_VOLUME_CLIP_CTRL, 1);
    SB_DATA    (so, reg);
 

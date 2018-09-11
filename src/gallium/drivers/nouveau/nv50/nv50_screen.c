@@ -170,6 +170,7 @@ nv50_screen_get_param(struct pipe_screen *pscreen, enum pipe_cap param)
    case PIPE_CAP_TEXTURE_BUFFER_OBJECTS:
    case PIPE_CAP_BUFFER_MAP_PERSISTENT_COHERENT:
    case PIPE_CAP_DEPTH_CLIP_DISABLE:
+   case PIPE_CAP_DEPTH_CLIP_DISABLE_SEPARATE:
    case PIPE_CAP_POINT_SPRITE:
    case PIPE_CAP_SM3:
    case PIPE_CAP_FRAGMENT_COLOR_CLAMPED:
@@ -232,7 +233,6 @@ nv50_screen_get_param(struct pipe_screen *pscreen, enum pipe_cap param)
       return class_3d >= NVA3_3D_CLASS;
 
    /* unsupported caps */
-   case PIPE_CAP_DEPTH_CLIP_DISABLE_SEPARATE:
    case PIPE_CAP_SEAMLESS_CUBE_MAP_PER_TEXTURE:
    case PIPE_CAP_TGSI_FS_COORD_ORIGIN_LOWER_LEFT:
    case PIPE_CAP_TGSI_FS_COORD_PIXEL_CENTER_INTEGER:
