@@ -442,7 +442,15 @@ RegAlloc::PhiMovesPass::visit(BasicBlock *bb)
          Instruction *mov = new_Instruction(func, OP_MOV, typeOfSize(tmp->reg.size));
          mov->setSrc(0, phi->getSrc(i));
          mov->setDef(0, tmp);
-         pb->insertBefore(pb->getExit(), mov);
+
+         // A BB may have multiple flow instructions at the end. We have to
+         // make sure that the mov goes in before the relevant jump.
+         Instruction *jump = pb->getExit();
+         while (jump->asFlow()->target.bb != bb) {
+            assert(jump->prev->asFlow());
+            jump = jump->prev;
+         }
+         pb->insertBefore(jump, mov);
 
          phi->setSrc(i, tmp);
       }
