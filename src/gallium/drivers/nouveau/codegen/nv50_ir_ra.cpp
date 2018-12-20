@@ -446,8 +446,7 @@ RegAlloc::PhiMovesPass::visit(BasicBlock *bb)
          // A BB may have multiple flow instructions at the end. We have to
          // make sure that the mov goes in before the relevant jump.
          Instruction *jump = pb->getExit();
-         while (jump->asFlow()->target.bb != bb) {
-            assert(jump->prev->asFlow());
+         while (jump->prev && jump->prev->asFlow() && jump->asFlow()->target.bb != bb) {
             jump = jump->prev;
          }
          pb->insertBefore(jump, mov);
