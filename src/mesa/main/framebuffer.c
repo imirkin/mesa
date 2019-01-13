@@ -850,6 +850,11 @@ _mesa_get_color_read_format(struct gl_context *ctx,
       case MESA_FORMAT_RGBA_UINT8:
          return GL_RGBA_INTEGER;
       case MESA_FORMAT_B8G8R8A8_UNORM:
+      case MESA_FORMAT_B8G8R8X8_UNORM:
+      case MESA_FORMAT_B5G5R5A1_UNORM:
+      case MESA_FORMAT_B5G5R5X1_UNORM:
+      case MESA_FORMAT_B4G4R4A4_UNORM:
+      case MESA_FORMAT_B4G4R4X4_UNORM:
          return GL_BGRA;
       case MESA_FORMAT_B5G6R5_UNORM:
       case MESA_FORMAT_R11G11B10_FLOAT:
