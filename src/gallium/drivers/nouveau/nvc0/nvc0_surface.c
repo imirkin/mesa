@@ -1514,6 +1514,15 @@ nvc0_blit_eng2d(struct nvc0_context *nvc0, const struct pipe_blit_info *info)
    PUSH_DATA (push, dv_dy);
    PUSH_DATA (push, dv_dy >> 32);
 
+   if (dst->base.status & NOUVEAU_BUFFER_STATUS_GPU_READING)
+      IMMED_NVC0(push, NVC0_2D(SERIALIZE), 0);
+
+   src->base.status &= ~NOUVEAU_BUFFER_STATUS_GPU_WRITING;
+   src->base.status |=  NOUVEAU_BUFFER_STATUS_GPU_READING;
+
+   dst->base.status &= ~NOUVEAU_BUFFER_STATUS_GPU_READING;
+   dst->base.status |=  NOUVEAU_BUFFER_STATUS_GPU_WRITING;
+
    BCTX_REFN(nvc0->bufctx, 2D, &dst->base, WR);
    BCTX_REFN(nvc0->bufctx, 2D, &src->base, RD);
    nouveau_pushbuf_bufctx(nvc0->base.pushbuf, nvc0->bufctx);

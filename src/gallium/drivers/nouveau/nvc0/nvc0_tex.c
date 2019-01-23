@@ -517,9 +517,6 @@ nvc0_validate_tic(struct nvc0_context *nvc0, int s)
       }
       nvc0->screen->tic.lock[tic->id / 32] |= 1 << (tic->id % 32);
 
-      res->status &= ~NOUVEAU_BUFFER_STATUS_GPU_WRITING;
-      res->status |=  NOUVEAU_BUFFER_STATUS_GPU_READING;
-
       if (!dirty)
          continue;
       commands[n++] = (tic->id << 9) | (i << 1) | 1;
@@ -528,6 +525,15 @@ nvc0_validate_tic(struct nvc0_context *nvc0, int s)
          BCTX_REFN(nvc0->bufctx_cp, CP_TEX(i), res, RD);
       else
          BCTX_REFN(nvc0->bufctx_3d, 3D_TEX(s, i), res, RD);
+   }
+   for (i = 0; i < nvc0->num_textures[s]; ++i) {
+      struct nv50_tic_entry *tic = nv50_tic_entry(nvc0->textures[s][i]);
+      if (tic) {
+         struct nv04_resource *res = nv04_resource(tic->pipe.texture);
+
+         res->status &= ~NOUVEAU_BUFFER_STATUS_GPU_WRITING;
+         res->status |=  NOUVEAU_BUFFER_STATUS_GPU_READING;
+      }
    }
    for (; i < nvc0->state.num_textures[s]; ++i)
       commands[n++] = (i << 1) | 0;
@@ -579,13 +585,19 @@ nve4_validate_tic(struct nvc0_context *nvc0, unsigned s)
       }
       nvc0->screen->tic.lock[tic->id / 32] |= 1 << (tic->id % 32);
 
-      res->status &= ~NOUVEAU_BUFFER_STATUS_GPU_WRITING;
-      res->status |=  NOUVEAU_BUFFER_STATUS_GPU_READING;
-
       nvc0->tex_handles[s][i] &= ~NVE4_TIC_ENTRY_INVALID;
       nvc0->tex_handles[s][i] |= tic->id;
       if (dirty)
          BCTX_REFN(nvc0->bufctx_3d, 3D_TEX(s, i), res, RD);
+   }
+   for (i = 0; i < nvc0->num_textures[s]; ++i) {
+      struct nv50_tic_entry *tic = nv50_tic_entry(nvc0->textures[s][i]);
+      if (tic) {
+         struct nv04_resource *res = nv04_resource(tic->pipe.texture);
+
+         res->status &= ~NOUVEAU_BUFFER_STATUS_GPU_WRITING;
+         res->status |=  NOUVEAU_BUFFER_STATUS_GPU_READING;
+      }
    }
    for (; i < nvc0->state.num_textures[s]; ++i) {
       nvc0->tex_handles[s][i] |= NVE4_TIC_ENTRY_INVALID;
