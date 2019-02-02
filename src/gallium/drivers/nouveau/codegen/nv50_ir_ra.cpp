@@ -433,8 +433,9 @@ RegAlloc::PhiMovesPass::visit(BasicBlock *bb)
    }
 
    // insert MOVs
-   PhiInstruction *phi = bb->getPhi() ? bb->getPhi()->asPhi() : NULL;
-   for (; phi; phi = phi->next->asPhi()) {
+   Instruction *i = bb->getPhi();
+   for (; i && i->asPhi(); i = i->next) {
+      PhiInstruction *phi = i->asPhi();
       for (int i = 0; phi->srcExists(i); i++) {
          BasicBlock *pb = phi->basicBlocks[i];
 
