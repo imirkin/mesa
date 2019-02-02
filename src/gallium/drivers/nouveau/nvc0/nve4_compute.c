@@ -711,15 +711,21 @@ nve4_launch_grid(struct pipe_context *pipe, const struct pipe_grid_info *info)
    BCTX_REFN_bo(nvc0->bufctx_cp, CP_DESC, NOUVEAU_BO_GART | NOUVEAU_BO_RD,
                 desc_bo);
 
+   int bindless = 0;
    list_for_each_entry(struct nvc0_resident, resident, &nvc0->tex_head, list) {
       nvc0_add_resident(nvc0->bufctx_cp, NVC0_BIND_CP_BINDLESS, resident->buf,
                         resident->flags);
+      bindless++;
    }
 
    list_for_each_entry(struct nvc0_resident, resident, &nvc0->img_head, list) {
       nvc0_add_resident(nvc0->bufctx_cp, NVC0_BIND_CP_BINDLESS, resident->buf,
                         resident->flags);
+      bindless++;
    }
+
+   if (bindless > 1000)
+      debug_printf("CP Bindless Handles: %d\n", bindless);
 
    ret = !nve4_state_validate_cp(nvc0, ~0);
    if (ret)

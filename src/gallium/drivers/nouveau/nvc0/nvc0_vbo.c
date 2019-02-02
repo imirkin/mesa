@@ -973,15 +973,21 @@ nvc0_draw_vbo(struct pipe_context *pipe, const struct pipe_draw_info *info)
       BCTX_REFN(nvc0->bufctx_3d, 3D_IDX, buf, RD);
    }
 
+   int bindless = 0;
    list_for_each_entry(struct nvc0_resident, resident, &nvc0->tex_head, list) {
       nvc0_add_resident(nvc0->bufctx_3d, NVC0_BIND_3D_BINDLESS, resident->buf,
                         resident->flags);
+      bindless++;
    }
 
    list_for_each_entry(struct nvc0_resident, resident, &nvc0->img_head, list) {
       nvc0_add_resident(nvc0->bufctx_3d, NVC0_BIND_3D_BINDLESS, resident->buf,
                         resident->flags);
+      bindless++;
    }
+
+   if (bindless > 1000)
+      debug_printf("3D Bindless Handles: %d\n", bindless);
 
    BCTX_REFN_bo(nvc0->bufctx_3d, 3D_TEXT, vram_domain | NOUVEAU_BO_RD,
                 screen->text);
