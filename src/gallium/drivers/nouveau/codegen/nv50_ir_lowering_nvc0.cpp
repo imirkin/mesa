@@ -2468,7 +2468,8 @@ NVC0LoweringPass::processSurfaceCoordsGM107(TexInstruction *su)
 {
    const int slot = su->tex.r;
    const int dim = su->tex.target.getDim();
-   const int arg = dim + (su->tex.target.isArray() || su->tex.target.isCube());
+   const bool array = su->tex.target.isArray() || su->tex.target.isCube();
+   const int arg = dim + array;
    Value *ind = su->getIndirectR();
    Value *handle;
    int pos = 0;
@@ -2489,6 +2490,17 @@ NVC0LoweringPass::processSurfaceCoordsGM107(TexInstruction *su)
       assert(pos == 0);
       break;
    }
+   if (dim == 2 && !array) {
+      // This might be a 2d slice of a 3d texture, try to load the z
+      // coordinate in.
+      Value *v = loadSuInfo32(ind, slot, NVC0_SU_INFO_UNK1C, su->tex.bindless);
+      bld.mkOp2(OP_SHR, TYPE_U32, v, v, bld.loadImm(NULL, 16));
+      su->moveSources(dim, 1);
+      su->setSrc(dim, v);
+      su->tex.target = nv50_ir::TEX_TARGET_3D;
+      pos++;
+   }
+
    if (su->tex.bindless)
       handle = ind;
    else
