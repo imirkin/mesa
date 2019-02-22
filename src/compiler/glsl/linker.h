@@ -134,6 +134,9 @@ public:
     */
    void process(ir_variable *var, bool use_std430_as_default);
 
+   void process(ir_variable *var, const glsl_type *var_type,
+                bool use_std430_as_default);
+
    /**
     * Begin processing a variable of a structured type.
     *
